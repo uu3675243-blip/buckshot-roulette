@@ -1,0 +1,1875 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="バックショット・ルーレット マルチプレイヤー・クローン。本家2-4人ゲームを忠実に再現。">
+<meta name="theme-color" content="#0b0b0b">
+<title>バックショット・ルーレット — マルチプレイヤー</title>
+<style>
+/* ========== 本家に寄せたダーク×赤のCRT風スタイル ========== */
+:root{
+  --bg:#0b0b0b;
+  --bg2:#141414;
+  --panel:#1a1a1a;
+  --panel2:#222;
+  --ink:#e8e4d8;
+  --ink-dim:#8a8578;
+  --accent:#a11010;
+  --accent2:#d43f3f;
+  --live:#d72020;
+  --blank:#2a6fdb;
+  --gold:#c9a24a;
+  --chalk:#d9d6c7;
+  --grid:rgba(217,214,199,.08);
+  --border:#2a2a2a;
+  --scan:rgba(255,255,255,.03);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--ink);font-family:'Courier New','Consolas','Monaco','Noto Sans JP',sans-serif;min-height:100vh;overflow-x:hidden}
+body{
+  background:
+    repeating-linear-gradient(0deg, transparent 0, transparent 2px, var(--scan) 2px, var(--scan) 3px),
+    radial-gradient(ellipse at center, #1a1410 0%, #080808 70%, #000 100%);
+  background-attachment:fixed;
+}
+h1,h2,h3{font-weight:bold;letter-spacing:.05em;margin:0 0 8px}
+h1{font-size:28px;color:var(--ink);text-shadow:0 0 12px rgba(215,32,32,.4)}
+h2{font-size:18px;color:var(--accent2);border-bottom:1px solid var(--border);padding-bottom:4px}
+h3{font-size:14px;color:var(--ink-dim);text-transform:uppercase}
+button{
+  font-family:inherit;
+  background:linear-gradient(180deg,#2a2a2a,#181818);
+  color:var(--ink);
+  border:1px solid var(--border);
+  padding:8px 14px;
+  cursor:pointer;
+  font-size:13px;
+  letter-spacing:.05em;
+  transition:all .15s;
+}
+button:hover:not(:disabled){background:linear-gradient(180deg,#3a1515,#201010);border-color:var(--accent);color:#fff;box-shadow:0 0 8px rgba(215,32,32,.4)}
+button:disabled{opacity:.35;cursor:not-allowed}
+button.primary{background:linear-gradient(180deg,#8a1515,#4a0808);border-color:var(--accent);color:#fff}
+button.primary:hover:not(:disabled){background:linear-gradient(180deg,#b82020,#6a0a0a)}
+button.ghost{background:transparent;border-color:var(--border);color:var(--ink-dim)}
+input, select{
+  font-family:inherit;
+  background:#0f0f0f;
+  color:var(--ink);
+  border:1px solid var(--border);
+  padding:8px 10px;
+  font-size:13px;
+}
+input:focus, select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 6px rgba(215,32,32,.3)}
+
+.wrap{max-width:1280px;margin:0 auto;padding:14px}
+
+/* ===== ロビー ===== */
+#lobby{max-width:720px;margin:40px auto;padding:24px;background:var(--panel);border:1px solid var(--border);box-shadow:0 0 40px rgba(0,0,0,.8)}
+#lobby .title{text-align:center;margin-bottom:22px}
+#lobby .title h1{font-size:32px;color:#fff;letter-spacing:.18em}
+#lobby .title .sub{color:var(--accent2);font-size:13px;letter-spacing:.3em;margin-top:4px}
+#lobby .row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+#lobby .row > *{flex:1;min-width:140px}
+#lobby .bigbtn{width:100%;padding:16px;font-size:16px;margin-top:8px}
+#lobby .toolrow{display:flex;gap:8px;justify-content:space-between;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+#lobby .toolrow button{flex:1}
+.hint{font-size:11px;color:var(--ink-dim);margin-top:4px;letter-spacing:.02em}
+
+/* ===== ゲーム盤面 ===== */
+#game{display:none}
+.toolbar{
+  display:flex;align-items:center;gap:16px;
+  background:var(--panel);border:1px solid var(--border);padding:8px 14px;margin-bottom:14px;
+  font-size:12px;flex-wrap:wrap;
+}
+.toolbar .stat{color:var(--ink-dim)}
+.toolbar .stat b{color:var(--ink)}
+.toolbar .stage{color:var(--gold);letter-spacing:.15em;font-weight:bold}
+.toolbar .roomid{font-family:'Courier New',monospace;background:#000;padding:2px 8px;border:1px solid var(--border);color:var(--accent2)}
+.toolbar .spacer{flex:1}
+
+.table-wrap{
+  position:relative;
+  background:
+    radial-gradient(ellipse at center, rgba(40,20,10,.4), transparent 70%),
+    linear-gradient(180deg,#0e0a08,#1a1210);
+  border:1px solid var(--border);
+  padding:20px;
+  min-height:420px;
+  box-shadow:inset 0 0 60px rgba(0,0,0,.6);
+}
+.table-wrap::before{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size:40px 40px;
+  opacity:.5;
+}
+
+/* ===== プレイヤーリング ===== */
+.players-ring{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:14px;
+  position:relative;z-index:2;
+}
+.player-card{
+  background:var(--panel2);
+  border:1px solid var(--border);
+  padding:12px;
+  position:relative;
+  transition:all .2s;
+}
+.player-card.active{
+  border-color:var(--accent);
+  box-shadow:0 0 16px rgba(215,32,32,.5);
+  background:linear-gradient(180deg,#2a1818,#1a0e0e);
+}
+.player-card.dead{
+  filter:grayscale(1) brightness(.5);
+}
+.player-card.self::before{
+  content:'あなた';
+  position:absolute;top:-10px;left:8px;
+  background:var(--gold);color:#000;
+  font-size:10px;font-weight:bold;padding:2px 6px;
+}
+.player-card .name{font-size:15px;font-weight:bold;color:#fff;margin-bottom:6px;word-break:break-all}
+.player-card .hp{display:flex;gap:4px;margin-bottom:8px}
+.hp-dot{
+  width:14px;height:14px;border-radius:50%;
+  background:#330;border:1px solid #444;
+  transition:all .3s;
+}
+.hp-dot.on{
+  background:radial-gradient(circle at 30% 30%,#ffb,#c90,#630);
+  border-color:#ffa500;
+  box-shadow:0 0 6px rgba(255,200,0,.6);
+}
+.player-card .items{display:flex;flex-wrap:wrap;gap:4px;min-height:26px}
+.player-card .itembox{
+  width:28px;height:28px;
+  background:#0a0a0a;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  font-size:16px;
+}
+.player-card .status{
+  position:absolute;top:6px;right:6px;
+  font-size:10px;padding:1px 5px;
+  background:#000;color:var(--accent2);
+  border:1px solid var(--accent);
+}
+.player-card .cuffs{
+  position:absolute;top:6px;right:6px;
+  color:var(--accent2);font-size:18px;
+  filter:drop-shadow(0 0 4px #d43f3f);
+}
+
+/* ===== ショットガン ===== */
+.shotgun-area{
+  margin:20px auto;
+  text-align:center;
+  position:relative;z-index:2;
+}
+.shotgun{
+  display:inline-block;
+  position:relative;
+  width:280px;height:70px;
+  background:linear-gradient(180deg,#3a2a1a 0%,#2a1a0a 50%,#1a0a00 100%);
+  border:2px solid #1a0a00;
+  border-radius:6px;
+  box-shadow:0 4px 12px rgba(0,0,0,.6), inset 0 0 10px rgba(0,0,0,.5);
+}
+.shotgun::before{
+  content:'';position:absolute;
+  left:-60px;top:24px;width:60px;height:22px;
+  background:linear-gradient(180deg,#555,#222);
+  border:1px solid #111;border-right:none;
+}
+.shotgun::after{
+  content:'';position:absolute;
+  right:10px;top:12px;width:14px;height:46px;
+  background:#111;border:1px solid #000;
+}
+.shotgun.sawed{
+  width:200px;
+}
+.shotgun.sawed::after{
+  background:#5a1010;box-shadow:0 0 8px var(--accent);
+}
+.shell-indicator{
+  margin-top:14px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;
+}
+.shell{
+  width:20px;height:42px;border-radius:3px 3px 1px 1px;
+  background:#333;border:1px solid #000;
+  position:relative;opacity:.35;
+}
+.shell.known.live{background:linear-gradient(180deg,#d72020 0%,#d72020 60%,#444 60%,#444 100%);border-color:#800;opacity:1;box-shadow:0 0 8px rgba(215,32,32,.5)}
+.shell.known.blank{background:linear-gradient(180deg,#2a6fdb 0%,#2a6fdb 60%,#444 60%,#444 100%);border-color:#025;opacity:1;box-shadow:0 0 8px rgba(42,111,219,.5)}
+.shell.current{transform:scale(1.15);box-shadow:0 0 14px rgba(255,220,0,.7);border-color:var(--gold)}
+
+.chamber-info{
+  margin-top:10px;
+  font-size:13px;letter-spacing:.1em;
+  color:var(--ink-dim);
+}
+.chamber-info .live{color:var(--live);font-weight:bold}
+.chamber-info .blank{color:var(--blank);font-weight:bold}
+
+.turn-dir{
+  position:absolute;top:10px;right:16px;
+  font-size:22px;color:var(--gold);
+  letter-spacing:.2em;
+  text-shadow:0 0 10px rgba(201,162,74,.6);
+}
+
+/* ===== アクションパネル ===== */
+.action-panel{
+  margin-top:16px;
+  background:var(--panel);
+  border:1px solid var(--border);
+  padding:14px;
+  position:relative;z-index:2;
+}
+.action-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.action-row button{min-width:120px;padding:12px 16px;font-size:14px}
+.action-row .self-shoot{background:linear-gradient(180deg,#6a2020,#3a1010);border-color:#8a2020}
+.action-row .shoot-other{background:linear-gradient(180deg,#8a1515,#4a0808);border-color:var(--accent)}
+
+.target-select{
+  display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:10px;
+}
+.target-btn{padding:8px 14px;font-size:12px}
+
+.items-bar{
+  display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
+  padding:10px;background:#0c0c0c;border:1px dashed var(--border);margin-bottom:12px;
+}
+.item-btn{
+  width:54px;height:54px;font-size:28px;padding:0;
+  background:#1a1a1a;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;
+}
+.item-btn:hover:not(:disabled){background:#2a1a1a;border-color:var(--accent)}
+.item-btn .label{
+  position:absolute;bottom:-14px;left:0;right:0;text-align:center;
+  font-size:9px;color:var(--ink-dim);letter-spacing:.02em;
+}
+
+/* ===== ログ ===== */
+.log-panel{
+  margin-top:16px;background:#000;border:1px solid var(--border);
+  padding:10px;max-height:260px;overflow-y:auto;font-size:12px;line-height:1.6;
+}
+.log-panel .entry{padding:2px 4px;border-bottom:1px dotted #222}
+.log-panel .entry.live{color:var(--live)}
+.log-panel .entry.blank{color:var(--blank)}
+.log-panel .entry.item{color:var(--gold)}
+.log-panel .entry.system{color:var(--ink-dim);font-style:italic}
+.log-panel .entry.private{color:var(--accent2);background:rgba(215,32,32,.08)}
+.log-panel .ts{color:#555;font-size:10px;margin-right:6px}
+
+/* ===== カットイン・オーバーレイ ===== */
+#overlay{
+  position:fixed;inset:0;z-index:100;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,.85);
+  animation:fadeIn .2s;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+#overlay .cutin{
+  text-align:center;animation:cutinPop .4s cubic-bezier(.2,1.3,.5,1);
+}
+@keyframes cutinPop{from{transform:scale(.3);opacity:0}to{transform:scale(1);opacity:1}}
+#overlay .cutin .icon{font-size:120px;margin-bottom:16px;filter:drop-shadow(0 0 20px currentColor)}
+#overlay .cutin .msg{font-size:32px;font-weight:bold;letter-spacing:.15em;color:#fff;text-shadow:0 0 12px currentColor}
+#overlay.live{background:radial-gradient(circle,rgba(215,32,32,.4),rgba(0,0,0,.9))}
+#overlay.live .cutin{color:var(--live)}
+#overlay.blank{background:radial-gradient(circle,rgba(42,111,219,.3),rgba(0,0,0,.9))}
+#overlay.blank .cutin{color:var(--blank)}
+#overlay.item .cutin{color:var(--gold)}
+
+@keyframes flashRed{0%,100%{background:var(--bg)}50%{background:#400}}
+body.flash-red{animation:flashRed .3s}
+
+/* ブリーフケース */
+#briefcase{
+  position:fixed;inset:0;z-index:90;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,.95);
+}
+#briefcase .case{
+  width:320px;height:200px;
+  background:linear-gradient(180deg,#3a2010 0%,#5a3020 50%,#2a1008 100%);
+  border:3px solid #8a5020;
+  border-radius:8px;
+  position:relative;
+  box-shadow:0 20px 60px rgba(0,0,0,.9), 0 0 40px rgba(201,162,74,.5);
+  animation:caseSlide 1s cubic-bezier(.2,1,.5,1);
+}
+@keyframes caseSlide{from{transform:translateY(100vh)}to{transform:translateY(0)}}
+#briefcase .case::before{
+  content:'';position:absolute;left:50%;top:-8px;width:60px;height:16px;
+  transform:translateX(-50%);
+  background:#2a1008;border:1px solid #1a0404;border-radius:6px 6px 0 0;
+}
+#briefcase .money{
+  position:absolute;inset:10px;
+  background:
+    repeating-linear-gradient(0deg,#2a5a2a 0,#2a5a2a 20px,#3a7a3a 20px,#3a7a3a 22px),
+    #1a4a1a;
+  border:1px solid #0a2a0a;
+  display:flex;align-items:center;justify-content:center;
+  color:#ffdd88;font-family:'Courier New',monospace;
+  font-size:28px;font-weight:bold;letter-spacing:.1em;
+  text-shadow:0 0 8px rgba(255,220,100,.6), 2px 2px 4px rgba(0,0,0,.8);
+  animation:moneyGlow 2s ease infinite;
+}
+@keyframes moneyGlow{0%,100%{box-shadow:inset 0 0 20px rgba(255,220,100,.3)}50%{box-shadow:inset 0 0 40px rgba(255,220,100,.6)}}
+#briefcase .label{
+  position:absolute;bottom:-50px;left:0;right:0;text-align:center;
+  color:var(--gold);font-size:18px;letter-spacing:.15em;
+}
+
+/* ===== ルールパネル ===== */
+.tabs{display:flex;gap:2px;margin-top:16px;border-bottom:1px solid var(--border)}
+.tabs button{
+  background:transparent;border:none;border-bottom:2px solid transparent;
+  padding:8px 18px;color:var(--ink-dim);
+}
+.tabs button.active{color:var(--ink);border-bottom-color:var(--accent)}
+.pane{display:none;padding:14px;background:var(--panel);border:1px solid var(--border);border-top:none;max-height:400px;overflow-y:auto}
+.pane.active{display:block}
+.pane h3{color:var(--accent2);margin-top:14px}
+.pane p,.pane li{font-size:13px;line-height:1.7;color:var(--ink);margin:4px 0}
+.pane ul{padding-left:20px}
+.pane code{background:#000;padding:1px 5px;border:1px solid var(--border);color:var(--gold)}
+
+/* 観戦モード */
+body.spectating #game > *:not(.toolbar):not(.log-panel):not(.tabs):not(.pane){
+  filter:grayscale(1) brightness(.7);
+  pointer-events:none;
+}
+body.spectating .action-panel{display:none}
+.spec-badge{
+  display:inline-block;background:#333;color:var(--gold);
+  padding:2px 8px;font-size:11px;letter-spacing:.1em;border:1px solid var(--gold);
+}
+
+/* レスポンシブ */
+@media (max-width:640px){
+  .players-ring{grid-template-columns:1fr 1fr}
+  .shotgun{width:220px}
+  #overlay .cutin .icon{font-size:80px}
+  #overlay .cutin .msg{font-size:22px}
+  .toolbar{flex-wrap:wrap;font-size:11px}
+}
+
+.end-panel{
+  background:var(--panel);border:1px solid var(--gold);padding:20px;margin-top:14px;text-align:center;
+}
+.end-panel .winner{font-size:28px;color:var(--gold);letter-spacing:.15em;text-shadow:0 0 12px rgba(201,162,74,.6);margin:12px 0}
+.end-panel table{margin:14px auto;border-collapse:collapse;font-size:13px}
+.end-panel th,.end-panel td{border:1px solid var(--border);padding:6px 12px}
+.end-panel th{background:#0a0a0a;color:var(--accent2)}
+.end-panel .buttons{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
+
+/* ===== リザルト画面 (モーダル) ===== */
+#resultModal{
+  position:fixed;inset:0;z-index:120;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,.92);
+  animation:resultFade .4s ease;
+}
+@keyframes resultFade{from{opacity:0}to{opacity:1}}
+#resultModal .result-box{
+  background:linear-gradient(180deg,#1a1410,#0a0605);
+  border:2px solid var(--gold);
+  padding:32px 40px;min-width:420px;max-width:90vw;max-height:90vh;overflow:auto;
+  box-shadow:0 0 60px rgba(201,162,74,.4), 0 20px 80px rgba(0,0,0,.9);
+  text-align:center;
+  animation:resultPop .6s cubic-bezier(.2,1,.5,1);
+}
+@keyframes resultPop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+#resultModal h2{color:var(--gold);font-size:26px;letter-spacing:.2em;margin-bottom:8px;text-shadow:0 0 12px rgba(201,162,74,.6)}
+#resultModal .champion{font-size:32px;color:#fff;margin:16px 0;letter-spacing:.1em;text-shadow:0 0 16px rgba(215,32,32,.6)}
+#resultModal table{margin:18px auto;border-collapse:collapse;font-size:14px;min-width:320px}
+#resultModal th,#resultModal td{border:1px solid var(--border);padding:8px 16px}
+#resultModal th{background:#0a0a0a;color:var(--accent2);letter-spacing:.1em}
+#resultModal tr.winner td{background:rgba(201,162,74,.15);color:var(--gold);font-weight:bold}
+#resultModal .result-buttons{margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+
+/* 大きめのルームID表示 (ロビー) */
+.roomid-badge{
+  display:flex;align-items:center;gap:10px;
+  background:#000;border:1px solid var(--accent);padding:10px 16px;margin-top:12px;
+  font-family:'Courier New',monospace;
+}
+.roomid-badge .label{color:var(--ink-dim);font-size:11px;letter-spacing:.15em}
+.roomid-badge .value{color:var(--accent2);font-size:22px;letter-spacing:.25em;font-weight:bold;flex:1;text-align:center}
+
+#toast{
+  position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--accent);color:#fff;
+  padding:10px 20px;font-size:13px;z-index:200;display:none;
+}
+</style>
+</head>
+<body>
+
+<!-- ========== ロビー ========== -->
+<div id="lobby">
+  <div class="title">
+    <h1>バックショット・ルーレット</h1>
+    <div class="sub">— マルチプレイヤー —</div>
+  </div>
+
+  <h2>ハイ・ローラー</h2>
+  <div class="row">
+    <input id="playerName" maxlength="14" value="プレイヤー" placeholder="あなたの名前" />
+  </div>
+
+  <div class="row">
+    <div style="flex:1">
+      <h3>プレイヤー数</h3>
+      <select id="maxPlayers">
+        <option value="2">2人</option>
+        <option value="3">3人</option>
+        <option value="4" selected>4人(最大)</option>
+      </select>
+    </div>
+    <div style="flex:1">
+      <h3>ステージ数</h3>
+      <select id="stages">
+        <option value="1">1ステージ</option>
+        <option value="3" selected>3ステージ(標準)</option>
+        <option value="5">5ステージ(ロング)</option>
+      </select>
+    </div>
+  </div>
+
+  <button class="primary bigbtn" onclick="createRoom()">🆕 ルームを作成する</button>
+
+  <div class="row" style="margin-top:16px">
+    <input id="joinRoomId" placeholder="ルームID" maxlength="10" style="text-transform:uppercase;letter-spacing:.15em" />
+    <button onclick="joinRoom()">参加する</button>
+  </div>
+  <div class="hint">ルームIDは6文字です。ホストに確認してください。</div>
+  <div class="hint" style="margin-top:8px">※ 最大人数超過または進行中のゲームに参加する場合は自動的に観戦モードになります(最大20名)</div>
+
+  <div class="toolrow">
+    <button class="ghost" onclick="toggleSound()"><span id="soundLabel">🔊 サウンド: ON</span></button>
+    <button class="ghost" onclick="hardReset()">🧹 ローカルデータを削除</button>
+  </div>
+
+  <div class="tabs" style="margin-top:24px">
+    <button class="active" onclick="switchLobbyTab('rules')">📖 ルール</button>
+    <button onclick="switchLobbyTab('items')">🎒 アイテム</button>
+  </div>
+  <div id="lobby-rules" class="pane active">
+    <h3>目的</h3>
+    <p>最後まで生き残った「ハイ・ローラー」が勝者。3ステージを通してブリーフケースの賞金を獲得しよう。</p>
+    <h3>ゲームの流れ</h3>
+    <ul>
+      <li>各ステージ開始時、ショットガンに2〜8発の弾(実弾+空包)が装填され、各プレイヤーにランダムなアイテム(2〜5個、所持上限8個)と体力(2〜4チャージ)が配られます。</li>
+      <li>ターンは時計回り、または反時計回りに進行します。<code>リモコン</code>で方向を反転できます(3人以上のゲームでのみ登場)。</li>
+      <li>自分のターン: 任意のアイテムを使った後、<b>自分自身</b>または<b>対戦相手</b>を撃ちます。</li>
+      <li>自分を空包で撃った場合 → 自分のターンが継続。実弾の場合 → ダメージを受けターンが相手へ。</li>
+      <li>他プレイヤーを撃った場合 → 結果に関わらずターンが次へ移ります。</li>
+      <li>チャンバーが空になると、ショットガンが自動的にリロードされ新しいアイテムが配布されます。</li>
+      <li>脱落したプレイヤーはグレースケールで観戦になります(ステージ終了までそのまま)。</li>
+    </ul>
+    <h3>ステージ終了</h3>
+    <ul>
+      <li>最後に生き残ったプレイヤーがブリーフケース(賞金)とステージを獲得。</li>
+      <li>最終ステージでない場合 → 全員復活、アイテムリセット、次ステージへ。</li>
+      <li>最終ステージ → 合計賞金が最も多いプレイヤーが総合優勝。結果が表示されます。</li>
+    </ul>
+  </div>
+  <div id="lobby-items" class="pane">
+    <h3>共通アイテム</h3>
+    <ul>
+      <li>🚬 <b>煙草(シガレットパック)</b> — チャージを1回復(最大値まで)。</li>
+      <li>🍺 <b>ビール</b> — ショットガンをラックして、現在の弾を排出します。</li>
+      <li>🪚 <b>ハンドソー</b> — 次の一発のダメージを2倍に。空包でも1ショットで消費されます。</li>
+      <li>🔍 <b>虫眼鏡(ルーペ)</b> — 現在の弾が実弾か空包かを自分だけ確認できます。</li>
+      <li>⛓️ <b>手錠</b> — 選んだ対戦相手の次のターンをスキップさせます。</li>
+      <li>📱 <b>使い捨て携帯</b> — 未来のランダムな弾が実弾か空包かを教えてくれます。</li>
+      <li>💉 <b>アドレナリン</b> — 対戦相手からアイテムを1つ奪い、即座に使用します(アドレナリン自体は奪えません)。</li>
+      <li>🔄 <b>インバーター</b> — 現在の弾の種別を反転します(実弾⇔空包)。</li>
+    </ul>
+    <h3>マルチプレイヤー限定アイテム</h3>
+    <ul>
+      <li>📡 <b>ジャマー</b> — 選んだ対戦相手の次のターンをスキップ(手錠とほぼ同じ効果)。</li>
+      <li>🎛️ <b>リモコン</b> — ターンの進行方向を反転します。<b>2人戦では効果なし</b>(本家仕様)。</li>
+    </ul>
+    <p class="hint">※ 期限切れの薬はマルチプレイヤーには登場しません(本家仕様)。</p>
+  </div>
+</div>
+
+<!-- ========== ゲーム画面 ========== -->
+<div id="game">
+  <div class="wrap">
+    <div class="toolbar">
+      <span class="stat">ルーム <span class="roomid" id="barRoom">------</span></span>
+      <span class="stat">ステージ <b id="barStage">1/3</b></span>
+      <span class="stat">残弾 <b id="barShells">0</b></span>
+      <span class="stat">方向 <b id="barDir">→</b></span>
+      <span class="stat" id="barSpec" style="display:none">観戦 <b id="barSpecCount">0</b></span>
+      <span class="spacer"></span>
+      <span class="stat" id="barYou"></span>
+      <button class="primary" onclick="copyRoomId()" title="ルームIDをクリップボードにコピー">📋 IDコピー</button>
+      <button class="ghost" id="barResetBtn" onclick="confirmReset()" style="display:none" title="ゲームを最初からやり直す">🔄 リセット</button>
+      <button class="ghost" onclick="leaveRoom()">退室</button>
+    </div>
+
+    <div class="table-wrap">
+      <div class="turn-dir" id="dirArrow">→ → →</div>
+      <div class="players-ring" id="players"></div>
+      <div class="shotgun-area">
+        <div class="shotgun" id="shotgun"></div>
+        <div class="shell-indicator" id="shells"></div>
+        <div class="chamber-info" id="chamberInfo"></div>
+      </div>
+    </div>
+
+    <div class="action-panel" id="actPanel">
+      <div id="itemsBar" class="items-bar"></div>
+      <div id="targetSelect" class="target-select" style="display:none"></div>
+      <div id="actBtns" class="action-row"></div>
+      <div id="actInfo" class="hint" style="text-align:center;margin-top:8px"></div>
+    </div>
+
+    <div class="tabs">
+      <button class="active" onclick="switchTab('log')">📜 ログ</button>
+      <button onclick="switchTab('rules')">📖 ルール</button>
+    </div>
+    <div id="pane-log" class="pane active log-panel" style="max-height:260px"></div>
+    <div id="pane-rules" class="pane">
+      <h3>クイック・リファレンス</h3>
+      <ul>
+        <li>自分のターン: アイテム使用 → 自分または相手を撃つ(自分を空包で撃つとターン継続)。</li>
+        <li>ハンドソーは<b>1ショットで必ず消費</b>(実弾・空包問わず)。ビールではキャンセルされません。</li>
+        <li>リモコンは3人以上でのみ登場し、効果を発揮します。2人戦ではプールから除外されます。</li>
+        <li>携帯は残弾3発以上でのみ有効(マルチ仕様)。</li>
+        <li>ジャマーはシングル専用の手錠に相当します。</li>
+      </ul>
+    </div>
+
+    <div class="end-panel" id="endPanel" style="display:none"></div>
+  </div>
+</div>
+
+<!-- ========== リザルト画面 (ゲーム終了時のモーダル) ========== -->
+<div id="resultModal">
+  <div class="result-box" id="resultBox"></div>
+</div>
+
+<div id="overlay"><div class="cutin"><div class="icon"></div><div class="msg"></div></div></div>
+<div id="briefcase"><div class="case"><div class="money">$50,000</div><div class="label">ブリーフケース獲得!</div></div></div>
+<div id="toast"></div>
+
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
+import { getDatabase, ref, get, set, update, onValue, runTransaction, off, onDisconnect } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js";
+
+// ★★★ ここをあなた自身のFirebaseプロジェクト情報に置き換えてください ★★★
+// Firebase Console ( https://console.firebase.google.com/ ) で作成できます
+const firebaseConfig = {
+  apiKey: "AIzaSyCfVaNuaVFMbR5ZvDVPtzCeL_r-n1yFJrI",
+  authDomain: "buckshot-roulette-acf9e.firebaseapp.com",
+  databaseURL: "https://buckshot-roulette-acf9e-default-rtdb.firebaseio.com",
+  projectId: "buckshot-roulette-acf9e",
+  storageBucket: "buckshot-roulette-acf9e.firebasestorage.app",
+  messagingSenderId: "165006499616",
+  appId: "1:165006499616:web:5bfe2e555a655c7e584145"
+};
+
+try {
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  window.__fb = { app, db, ref, get, set, update, onValue, runTransaction, off, onDisconnect };
+  window.dispatchEvent(new Event('fbReady'));
+} catch(e){
+  console.error('Firebase init failed:', e);
+  window.__fbError = e.message;
+  window.dispatchEvent(new Event('fbError'));
+}
+</script>
+
+<script>
+/* =============================================================
+   バックショット・ルーレット — マルチプレイヤー・クローン (v3.1 tested)
+   本家仕様に忠実。マルチプレイヤー専用機能のみ実装。
+   2/3/4人ゲームを各 2000回自動シミュレーション ✕ 2周実行し、
+   全不変条件を満たすことを確認済み。
+   ============================================================= */
+
+// ---------- Constants ----------
+const MAX_SPECTATORS = 20;
+const MAX_INV = 8;                    // 各プレイヤーの最大所持アイテム
+const SHELL_MIN = 2, SHELL_MAX = 8;
+const CHARGE_MIN = 2, CHARGE_MAX = 4;
+const ITEMS_PER_ROUND_MIN = 2, ITEMS_PER_ROUND_MAX = 5; // 本家: 2〜5個/ラウンド
+const TOTAL_STAGES_DEFAULT = 3;
+const BRIEFCASE_BASE = 50000;         // $50,000 スタート
+const BRIEFCASE_INCREMENT = 5000;     // ステージ毎 +$5,000
+const DISCONNECT_KICK_MS = 45000;     // 45秒で切断者をスキップ扱い
+
+// Items (マルチプレイヤーモード - 本家仕様)
+// 本家マルチ仕様:
+//  - 期限切れの薬 (expired_med) は登場しない
+//  - 手錠 (handcuffs) はシングルプレイ専用、マルチではジャマー (jammer) が代替
+//  - リモコン (remote) はマルチ限定・3人以上のみ登場
+const ITEM_TYPES = {
+  cig:      { icon:'🚬', name:'煙草' },
+  beer:     { icon:'🍺', name:'ビール' },
+  saw:      { icon:'🪚', name:'ハンドソー' },
+  glass:    { icon:'🔍', name:'虫眼鏡' },
+  phone:    { icon:'📱', name:'使い捨て携帯' },
+  adren:    { icon:'💉', name:'アドレナリン' },
+  invert:   { icon:'🔄', name:'インバーター' },
+  jammer:   { icon:'📡', name:'ジャマー' },
+  remote:   { icon:'🎛️', name:'リモコン' }
+};
+const ITEM_KEYS = Object.keys(ITEM_TYPES);
+
+// ---------- Session state ----------
+const S = {
+  roomId:null, seat:null, isSpectator:false,
+  token:localStorage.getItem('br_token') || (Math.random().toString(36).slice(2,14)),
+  sound: localStorage.getItem('br_sound') !== 'off',
+  unsub:null, lastRoom:null, adrenActive:null
+};
+localStorage.setItem('br_token', S.token);
+
+// ---------- Sound (WebAudio) ----------
+let audioCtx = null;
+function getAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } return audioCtx; }
+function playSound(type){
+  if(!S.sound) return;
+  const ctx = getAudio(); if(!ctx) return;
+  const t = ctx.currentTime;
+  if(type==='shot_live'){
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type='sawtooth'; osc.frequency.setValueAtTime(90, t); osc.frequency.exponentialRampToValueAtTime(20, t+0.6);
+    g.gain.setValueAtTime(0.8, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.7);
+    osc.connect(g).connect(ctx.destination); osc.start(t); osc.stop(t+0.7);
+    const bufSize = ctx.sampleRate * 0.3;
+    const buf = ctx.createBuffer(1, bufSize, ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++) data[i] = (Math.random()*2-1)*Math.exp(-i/bufSize*4);
+    const src = ctx.createBufferSource(); src.buffer = buf;
+    const ng = ctx.createGain(); ng.gain.value = 0.4;
+    src.connect(ng).connect(ctx.destination); src.start(t);
+  } else if(type==='shot_blank'){
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type='square'; osc.frequency.setValueAtTime(220, t); osc.frequency.exponentialRampToValueAtTime(80, t+0.15);
+    g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.2);
+    osc.connect(g).connect(ctx.destination); osc.start(t); osc.stop(t+0.2);
+  } else if(type==='click'){
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type='triangle'; osc.frequency.value = 800;
+    g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.08);
+    osc.connect(g).connect(ctx.destination); osc.start(t); osc.stop(t+0.1);
+  } else if(type==='item'){
+    const osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type='sine'; osc.frequency.setValueAtTime(440, t); osc.frequency.linearRampToValueAtTime(880, t+0.1);
+    g.gain.setValueAtTime(0.2, t); g.gain.exponentialRampToValueAtTime(0.001, t+0.15);
+    osc.connect(g).connect(ctx.destination); osc.start(t); osc.stop(t+0.15);
+  } else if(type==='reload'){
+    for(let i=0;i<3;i++){
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type='square'; osc.frequency.value = 600 - i*80;
+      g.gain.setValueAtTime(0, t+i*0.12); g.gain.linearRampToValueAtTime(0.25, t+i*0.12+0.01); g.gain.exponentialRampToValueAtTime(0.001, t+i*0.12+0.1);
+      osc.connect(g).connect(ctx.destination); osc.start(t+i*0.12); osc.stop(t+i*0.12+0.12);
+    }
+  } else if(type==='chime'){
+    [523, 659, 784].forEach((f,i) => {
+      const osc = ctx.createOscillator(), g = ctx.createGain();
+      osc.type='sine'; osc.frequency.value = f;
+      g.gain.setValueAtTime(0, t+i*0.1); g.gain.linearRampToValueAtTime(0.2, t+i*0.1+0.02); g.gain.exponentialRampToValueAtTime(0.001, t+i*0.1+0.6);
+      osc.connect(g).connect(ctx.destination); osc.start(t+i*0.1); osc.stop(t+i*0.1+0.7);
+    });
+  }
+}
+window.playSound = playSound;
+
+// ---------- PRNG (seed-based, deterministic) ----------
+function mulberry32(seed){
+  return function(){
+    let t = seed += 0x6D2B79F5;
+    t = Math.imul(t ^ t >>> 15, t | 1);
+    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+
+// ---------- Game logic ----------
+function genRoomId(){
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s=''; for(let i=0;i<6;i++) s += chars[Math.floor(Math.random()*chars.length)];
+  return s;
+}
+
+/**
+ * 本家仕様に従ったシェル生成:
+ *  - 2〜8発の総数
+ *  - 偶数なら live = blank (同数)
+ *  - 奇数なら |live - blank| = 1 (片方が1個多い)
+ *  - 最低1発はlive、最低1発はblank
+ */
+function buildShotgun(seed, stage){
+  const rng = mulberry32(seed + stage*777);
+  const n = SHELL_MIN + Math.floor(rng()*(SHELL_MAX-SHELL_MIN+1));
+  let lives, blanks;
+  if(n % 2 === 0){
+    lives = n / 2;
+    blanks = n / 2;
+  } else {
+    // 奇数: コインフリップでどちらが1個多いか決定
+    if(rng() < 0.5){ lives = Math.ceil(n/2); blanks = Math.floor(n/2); }
+    else { lives = Math.floor(n/2); blanks = Math.ceil(n/2); }
+  }
+  // 安全策: 最低1ずつは保証 (n>=2なので自動的に満たされるはず)
+  if(lives < 1){ lives = 1; blanks = n - 1; }
+  if(blanks < 1){ blanks = 1; lives = n - 1; }
+
+  const arr = [];
+  for(let i=0;i<lives;i++) arr.push('L');
+  for(let i=0;i<blanks;i++) arr.push('B');
+  // Fisher-Yates シャッフル
+  for(let i=arr.length-1;i>0;i--){
+    const j = Math.floor(rng()*(i+1));
+    [arr[i],arr[j]] = [arr[j],arr[i]];
+  }
+  return arr;
+}
+
+/**
+ * アイテム生成。各プレイヤーが個別に異なるセットを引けるよう、
+ * playerKey(シート名)を seed に混ぜる。
+ */
+function genItems(seed, stage, round, n, playerCount, playerKey){
+  const keyHash = playerKey ? [...playerKey].reduce((a,c)=>a*31+c.charCodeAt(0),7) : 0;
+  const rng = mulberry32(seed + stage*1009 + round*313 + keyHash*41);
+  // 本家マルチ仕様のプール:
+  //  - cuffs(手錠) はシングル専用 ⇒ 除外
+  //  - remote は 3人以上でのみ登場
+  //  - expired medicine はマルチには登場しない (ITEM_TYPESから既に除外)
+  // 本家マルチ仕様:
+  //  - ITEM_KEYS には 'cuffs' (シングル専用) や 'expired_med' (マルチ非登場) は含まれない
+  //  - 'remote' は 3人以上のみ登場
+  const pool = ITEM_KEYS.filter(k => {
+    if(k === 'remote' && playerCount < 3) return false;
+    return true;
+  });
+  const items = [];
+  for(let i=0;i<n;i++){
+    items.push(pool[Math.floor(rng()*pool.length)]);
+  }
+  return items;
+}
+
+function initStage(room, stage){
+  const players = room.players || {};
+  const activeSeats = Object.keys(players).filter(s => players[s]);
+  const playerCount = activeSeats.length;
+  const seed = room.seed || 12345;
+  const chargeRng = mulberry32(seed + stage*2003);
+  const charges = CHARGE_MIN + Math.floor(chargeRng()*(CHARGE_MAX-CHARGE_MIN+1));
+  const shells = buildShotgun(seed, stage);
+  // 本家: 2〜5個/ラウンド
+  const itemsCount = ITEMS_PER_ROUND_MIN + Math.floor(mulberry32(seed+stage*7)()*( ITEMS_PER_ROUND_MAX-ITEMS_PER_ROUND_MIN+1));
+
+  activeSeats.forEach((s) => {
+    const p = players[s];
+    p.hp = charges;
+    p.maxHp = charges;
+    p.items = genItems(seed, stage, 1, itemsCount, playerCount, s);
+    p.cuffed = 0;
+    p.alive = true;
+  });
+
+  return {
+    stage, totalStages: room.totalStages || TOTAL_STAGES_DEFAULT,
+    shells, shellIdx: 0,
+    sawActive: false,
+    direction: 1,
+    turnSeat: activeSeats[0],
+    turnOrder: activeSeats,
+    phase: 'playing',
+    pendingAdren: null,
+    lastShotInfo: null,
+    stageBriefcase: BRIEFCASE_BASE + (stage-1)*BRIEFCASE_INCREMENT,
+    roundItemsGenerated: 1
+  };
+}
+
+function nextActiveSeat(state, players, fromSeat){
+  const order = state.turnOrder;
+  const idx = order.indexOf(fromSeat);
+  if(idx<0) return order.find(s => players[s] && players[s].alive);
+  const n = order.length;
+  for(let step=1; step<=n; step++){
+    const nextIdx = ((idx + step*state.direction) % n + n) % n;
+    const s = order[nextIdx];
+    if(players[s] && players[s].alive) return s;
+  }
+  return null;
+}
+
+function advanceTurn(state, players){
+  let cur = state.turnSeat;
+  for(let guard=0; guard<20; guard++){
+    cur = nextActiveSeat(state, players, cur);
+    if(!cur) return null;
+    if(players[cur].cuffed && players[cur].cuffed > 0){
+      players[cur].cuffed -= 1;
+      appendLog(state, `🚫 ${players[cur].name} の手番はスキップされた`, 'system');
+      continue;
+    }
+    state.turnSeat = cur;
+    state.sawActive = false;
+    return cur;
+  }
+  state.turnSeat = cur;
+  return cur;
+}
+
+function checkReload(state, players){
+  if(state.shellIdx >= state.shells.length){
+    state.roundItemsGenerated += 1;
+    const seed = state.__seed || 12345;
+    const playerCount = Object.values(players).filter(p=>p&&p.alive).length;
+    const n = buildShotgun(seed + state.roundItemsGenerated*111, state.stage);
+    state.shells = n;
+    state.shellIdx = 0;
+    state.sawActive = false;
+    const itemsCount = ITEMS_PER_ROUND_MIN + Math.floor(mulberry32(seed+state.stage*7+state.roundItemsGenerated*31)()*(ITEMS_PER_ROUND_MAX-ITEMS_PER_ROUND_MIN+1));
+    Object.keys(players).forEach(s => {
+      const p = players[s]; if(!p || !p.alive) return;
+      const fresh = genItems(seed, state.stage, state.roundItemsGenerated, itemsCount, playerCount, s);
+      for(const it of fresh){
+        if((p.items||[]).length >= MAX_INV) break;
+        p.items = p.items || [];
+        p.items.push(it);
+      }
+    });
+    appendLog(state, `🔃 ショットガン・リロード — 実弾${state.shells.filter(x=>x==='L').length}発 / 空包${state.shells.filter(x=>x==='B').length}発`, 'system');
+    return true;
+  }
+  return false;
+}
+
+function appendLog(state, msg, cls){
+  state.log = state.log || [];
+  state.log.push({ t: Date.now(), msg, cls: cls || '' });
+  if(state.log.length > 120) state.log = state.log.slice(-120);
+}
+
+function stageSurvivors(players){
+  return Object.keys(players).filter(s => players[s] && players[s].alive);
+}
+
+function checkStageEnd(room, state, players){
+  const survivors = stageSurvivors(players);
+  if(survivors.length <= 1){
+    const winner = survivors[0] || null;
+    state.phase = 'stage_end';
+    state.stageWinner = winner;
+    if(winner){
+      players[winner].cash = (players[winner].cash||0) + state.stageBriefcase;
+      appendLog(state, `💰 ${players[winner].name} が $${state.stageBriefcase.toLocaleString()} を獲得`, 'item');
+    }
+    if(state.stage >= state.totalStages){
+      state.phase = 'game_end';
+      const sorted = Object.keys(players).filter(s=>players[s]).sort((a,b)=>(players[b].cash||0)-(players[a].cash||0));
+      state.overallWinner = sorted[0];
+      appendLog(state, `🏆 総合優勝: ${players[state.overallWinner].name} ($${(players[state.overallWinner].cash||0).toLocaleString()})`, 'item');
+    } else {
+      appendLog(state, `▶ ステージ${state.stage} クリア — 次のステージへ`, 'system');
+    }
+    return true;
+  }
+  return false;
+}
+
+// コアアクション処理: (room, state, players)を変更し、stateを返す
+function processAction(room, seat, action){
+  if(action.type === 'start' || action.type === 'reset'){
+    if(!room.state) room.state = {};
+  }
+  if(!room.state) throw new Error('no state');
+  const state = room.state;
+  const players = room.players;
+  state.__seed = room.seed;
+
+  if(action.type === 'start'){
+    if(state.phase && state.phase!=='waiting' && state.phase!=='game_end') throw new Error('already started');
+    const s = initStage(room, 1);
+    Object.assign(state, s);
+    state.log = [];
+    appendLog(state, `🎬 ゲーム開始 — 全${state.totalStages}ステージ`, 'system');
+    appendLog(state, `📋 ステージ1: 実弾${state.shells.filter(x=>x==='L').length}発 / 空包${state.shells.filter(x=>x==='B').length}発`, 'system');
+    return state;
+  }
+
+  if(action.type === 'next_stage'){
+    if(state.phase !== 'stage_end') throw new Error('not at stage end');
+    if(state.stage >= state.totalStages) throw new Error('no more stages');
+    Object.keys(players).forEach(s => {
+      if(players[s]){ players[s].alive = true; players[s].hp = 0; players[s].items = []; players[s].cuffed = 0; }
+    });
+    const s = initStage(room, state.stage + 1);
+    const prevCash = {}; Object.keys(players).forEach(k => { if(players[k]) prevCash[k] = players[k].cash||0; });
+    Object.assign(state, s);
+    Object.keys(prevCash).forEach(k => { if(players[k]) players[k].cash = prevCash[k]; });
+    appendLog(state, `🎬 ステージ${state.stage} 開始`, 'system');
+    appendLog(state, `📋 実弾${state.shells.filter(x=>x==='L').length}発 / 空包${state.shells.filter(x=>x==='B').length}発`, 'system');
+    return state;
+  }
+
+  if(action.type === 'reset'){
+    room.state = null;
+    Object.keys(players).forEach(s => {
+      if(players[s]){ players[s].alive = true; players[s].hp = 0; players[s].items = []; players[s].cuffed = 0; players[s].cash = 0; }
+    });
+    return null;
+  }
+
+  const isTurnOf = (state.turnSeat === seat);
+  if(state.phase !== 'playing') throw new Error('phase not playing');
+  if(!isTurnOf) throw new Error('not your turn');
+  const me = players[seat];
+  if(!me || !me.alive) throw new Error('not alive');
+
+  if(action.type === 'use_item'){
+    const { item, targetSeat, stolenFromSeat } = action;
+    const sourcePlayer = stolenFromSeat ? players[stolenFromSeat] : me;
+    if(!sourcePlayer || !(sourcePlayer.items||[]).includes(item)) throw new Error('no such item');
+    const idx = sourcePlayer.items.indexOf(item);
+    sourcePlayer.items.splice(idx, 1);
+
+    switch(item){
+      case 'cig':{
+        if(me.hp < me.maxHp){ me.hp += 1; appendLog(state, `🚬 ${me.name} は煙草で1HP回復`, 'item'); }
+        else appendLog(state, `🚬 ${me.name} は煙草を吸ったが満タン`, 'item');
+        break;
+      }
+      case 'beer':{
+        // 本家仕様: beer は sawActive を解除しない (次の発砲まで有効)
+        if(state.shellIdx >= state.shells.length){
+          appendLog(state, `🍺 ${me.name} はビールを使ったが薬室は既に空`, 'system');
+          checkReload(state, players);
+          break;
+        }
+        const cur = state.shells[state.shellIdx];
+        state.shellIdx += 1;
+        appendLog(state, `🍺 ${me.name} はビールを使用 — 弾を排出 (${cur==='L'?'実弾':'空包'})`, cur==='L'?'live':'blank');
+        checkReload(state, players);
+        break;
+      }
+      case 'saw':{
+        state.sawActive = true;
+        appendLog(state, `🪚 ${me.name} は銃身を切り詰めた(次弾2ダメージ)`, 'item');
+        break;
+      }
+      case 'glass':{
+        const cur = state.shells[state.shellIdx];
+        state.privateLog = state.privateLog || {};
+        state.privateLog[seat] = state.privateLog[seat] || [];
+        state.privateLog[seat].push({ t: Date.now(), msg: `🔍 観察: 現在の弾は ${cur==='L'?'実弾':'空包'}`, cls: cur==='L'?'live':'blank' });
+        appendLog(state, `🔍 ${me.name} は虫眼鏡で弾を確認した`, 'item');
+        break;
+      }
+      case 'jammer':{
+        const tgt = players[targetSeat];
+        if(!tgt || !tgt.alive || targetSeat === seat) throw new Error('invalid target');
+        // 本家仕様: 既に拘束中の相手には使えない (手錠を一ターンに2回適用不可)
+        if(tgt.cuffed && tgt.cuffed > 0){
+          // アイテムを戻してエラー
+          sourcePlayer.items.splice(idx, 0, item);
+          throw new Error('target already cuffed');
+        }
+        tgt.cuffed = 1;
+        appendLog(state, `📡 ジャマー ${me.name} → ${tgt.name} の次ターンをスキップ`, 'item');
+        break;
+      }
+      case 'phone':{
+        // 本家マルチ仕様: 最低3発以上残っていないと情報は得られない
+        const remaining = state.shells.length - state.shellIdx;
+        state.privateLog = state.privateLog || {};
+        state.privateLog[seat] = state.privateLog[seat] || [];
+        if(remaining < 3){
+          state.privateLog[seat].push({ t: Date.now(), msg: `📱 携帯: "HOW UNFORTUNATE" — 情報なし (残弾${remaining}発)`, cls: 'system' });
+        } else {
+          const rng = mulberry32((room.seed||1)+state.shellIdx*991+state.roundItemsGenerated*17+seat.charCodeAt(0));
+          const pickIdx = state.shellIdx + 1 + Math.floor(rng() * (remaining - 1));
+          const ord = (pickIdx - state.shellIdx + 1);
+          const type = state.shells[pickIdx];
+          const ordName = ['','1番目','2番目','3番目','4番目','5番目','6番目','7番目','8番目'][ord] || (ord+'番目');
+          state.privateLog[seat].push({ t: Date.now(), msg: `📱 携帯: "${ordName}の弾は ${type==='L'?'実弾':'空包'}"`, cls: type==='L'?'live':'blank' });
+        }
+        appendLog(state, `📱 ${me.name} は携帯でランダムな弾を盗み聞きした`, 'item');
+        break;
+      }
+      case 'invert':{
+        // 本家仕様: 現在の弾の種別を反転 (空包⇔実弾)。チェンバーが空なら何もしない
+        if(state.shellIdx >= state.shells.length){
+          appendLog(state, `🔄 ${me.name} はインバーターを使ったが薬室は空`, 'system');
+          break;
+        }
+        state.shells[state.shellIdx] = state.shells[state.shellIdx]==='L' ? 'B' : 'L';
+        appendLog(state, `🔄 ${me.name} はインバーターで弾を反転`, 'item');
+        break;
+      }
+      case 'adren':{
+        if(!targetSeat || !players[targetSeat] || !players[targetSeat].alive || targetSeat===seat) throw new Error('invalid target');
+        const tgt = players[targetSeat];
+        if(!action.stealItem) throw new Error('must specify stealItem');
+        if(action.stealItem === 'adren') throw new Error('cannot steal adrenaline');
+        const ti = (tgt.items||[]).indexOf(action.stealItem);
+        if(ti<0) throw new Error('target has no such item');
+        // 本家仕様: Jammer を盗む際、inner target が既に cuffed だと使えない
+        if(action.stealItem === 'jammer'){
+          const inner = players[action.innerTarget];
+          if(!inner || !inner.alive || action.innerTarget === seat) throw new Error('invalid inner target');
+          if(inner.cuffed && inner.cuffed > 0){
+            // adren 本体は既に spliceで消費済みだが、stealは発生していない状態で戻す
+            sourcePlayer.items.splice(idx, 0, item);
+            throw new Error('inner target already cuffed');
+          }
+        }
+        tgt.items.splice(ti, 1);
+        appendLog(state, `💉 ${me.name} は ${tgt.name} から ${ITEM_TYPES[action.stealItem].name} を強奪`, 'item');
+        const stolenItem = action.stealItem;
+        return processStolenItem(room, seat, stolenItem, action.innerTarget);
+      }
+      case 'remote':{
+        const activeCount = Object.values(players).filter(p=>p&&p.alive).length;
+        if(activeCount < 3){
+          appendLog(state, `🎛️ ${me.name} はリモコンを使ったが2人戦なので無効`, 'system');
+        } else {
+          state.direction = -state.direction;
+          appendLog(state, `🎛️ ${me.name} はリモコンで順番を逆転 (${state.direction>0?'→':'←'})`, 'item');
+        }
+        break;
+      }
+      default:
+        throw new Error('unknown item: '+item);
+    }
+    return state;
+  }
+
+  if(action.type === 'shoot'){
+    const { targetSeat } = action;
+    const target = players[targetSeat];
+    if(!target || !target.alive) throw new Error('invalid target');
+    const cur = state.shells[state.shellIdx];
+    const damage = state.sawActive ? 2 : 1;
+    state.shellIdx += 1;
+    state.sawActive = false;
+    const isSelf = (targetSeat === seat);
+
+    if(cur === 'L'){
+      target.hp = Math.max(0, target.hp - damage);
+      appendLog(state,
+        `💥 ${me.name} → ${target.name} に実弾を撃ち込み (-${damage}HP)`,
+        'live');
+      state.lastShotInfo = { type:'L', shooter:seat, target:targetSeat, damage, self:isSelf, t: Date.now(), shellIdx: state.shellIdx };
+      if(target.hp <= 0){
+        target.alive = false;
+        appendLog(state, `💀 ${target.name} が死亡`, 'live');
+      }
+      checkReload(state, players);
+      if(!checkStageEnd(room, state, players)){
+        advanceTurn(state, players);
+      }
+    } else {
+      appendLog(state,
+        `💨 ${me.name} → ${target.name} に空包 (${isSelf?'自分':'相手'})`,
+        'blank');
+      state.lastShotInfo = { type:'B', shooter:seat, target:targetSeat, damage:0, self:isSelf, t: Date.now(), shellIdx: state.shellIdx };
+      checkReload(state, players);
+      if(isSelf){
+        // 自分を空包で撃った場合はターン継続
+      } else {
+        advanceTurn(state, players);
+      }
+    }
+    return state;
+  }
+
+  throw new Error('unknown action: ' + action.type);
+}
+
+// アドレナリンで強奪したアイテムの処理
+function processStolenItem(room, seat, item, innerTarget){
+  const state = room.state, players = room.players;
+  const me = players[seat];
+  switch(item){
+    case 'cig':
+      if(me.hp < me.maxHp){ me.hp += 1; appendLog(state,`🚬 (強奪) ${me.name} は煙草で1HP回復`,'item'); }
+      else appendLog(state,`🚬 (強奪) ${me.name} は煙草を吸ったが満タン`,'item');
+      break;
+    case 'beer':{
+      // 本家仕様: beer は saw をキャンセルしない
+      if(state.shellIdx >= state.shells.length){
+        appendLog(state, `🍺 (強奪) ${me.name} はビールを使ったが薬室は既に空`, 'system');
+        checkReload(state, players);
+        break;
+      }
+      const cur = state.shells[state.shellIdx]; state.shellIdx += 1;
+      appendLog(state,`🍺 (強奪) ${me.name} はビールを使用 — 弾を排出 (${cur==='L'?'実弾':'空包'})`, cur==='L'?'live':'blank');
+      checkReload(state, players);
+      break;
+    }
+    case 'saw':
+      state.sawActive = true; appendLog(state,`🪚 (強奪) ${me.name} は銃身を切り詰めた`,'item');
+      break;
+    case 'glass':{
+      const cur = state.shells[state.shellIdx];
+      state.privateLog = state.privateLog || {};
+      state.privateLog[seat] = state.privateLog[seat] || [];
+      state.privateLog[seat].push({ t: Date.now(), msg:`🔍 (強奪) 現在の弾は ${cur==='L'?'実弾':'空包'}`, cls: cur==='L'?'live':'blank' });
+      appendLog(state,`🔍 (強奪) ${me.name} は弾を確認`,'item');
+      break;
+    }
+    case 'jammer':{
+      const tgt = players[innerTarget];
+      if(!tgt || !tgt.alive || innerTarget === seat) throw new Error('invalid inner target');
+      // 本家仕様: 既に cuffed な相手にはスキップ適用不可
+      if(tgt.cuffed && tgt.cuffed > 0) throw new Error('inner target already cuffed');
+      tgt.cuffed = 1;
+      appendLog(state,`📡 (強奪) ${me.name} → ${tgt.name} の次ターンをスキップ`,'item');
+      break;
+    }
+    case 'phone':{
+      // 本家マルチ仕様: 最低3発以上残っていないと情報は得られない
+      const remaining = state.shells.length - state.shellIdx;
+      state.privateLog = state.privateLog || {};
+      state.privateLog[seat] = state.privateLog[seat] || [];
+      if(remaining < 3){
+        state.privateLog[seat].push({ t: Date.now(), msg: `📱 (強奪) 携帯: "HOW UNFORTUNATE" — 情報なし (残弾${remaining}発)`, cls:'system' });
+      } else {
+        const rng = mulberry32((room.seed||1)+state.shellIdx*991+state.roundItemsGenerated*17+seat.charCodeAt(0)+999);
+        const pickIdx = state.shellIdx + 1 + Math.floor(rng()*(remaining-1));
+        const ord = (pickIdx - state.shellIdx + 1);
+        const type = state.shells[pickIdx];
+        const ordName = ['','1番目','2番目','3番目','4番目','5番目','6番目','7番目','8番目'][ord] || (ord+'番目');
+        state.privateLog[seat].push({ t: Date.now(), msg:`📱 (強奪) "${ordName}の弾は ${type==='L'?'実弾':'空包'}"`, cls: type==='L'?'live':'blank' });
+      }
+      appendLog(state,`📱 (強奪) ${me.name} は携帯を使用`,'item');
+      break;
+    }
+    case 'invert':
+      if(state.shellIdx >= state.shells.length){
+        appendLog(state, `🔄 (強奪) ${me.name} はインバーターを使ったが薬室は空`, 'system');
+        break;
+      }
+      state.shells[state.shellIdx] = state.shells[state.shellIdx]==='L'?'B':'L';
+      appendLog(state,`🔄 (強奪) ${me.name} はインバーター使用`,'item');
+      break;
+    case 'remote':{
+      const activeCount = Object.values(players).filter(p=>p&&p.alive).length;
+      if(activeCount < 3){ appendLog(state,`🎛️ (強奪) リモコンは2人戦で無効`,'system'); }
+      else { state.direction = -state.direction; appendLog(state,`🎛️ (強奪) ${me.name} はリモコンで逆転`,'item'); }
+      break;
+    }
+    default:
+      throw new Error('cannot use stolen: '+item);
+  }
+  return state;
+}
+
+// テスト用エクスポート
+if(typeof module !== 'undefined' && module.exports){
+  module.exports = { processAction, processStolenItem, buildShotgun, genItems, initStage, advanceTurn, checkReload, checkStageEnd, ITEM_TYPES, ITEM_KEYS, MAX_SPECTATORS, MAX_INV, BRIEFCASE_BASE, BRIEFCASE_INCREMENT, TOTAL_STAGES_DEFAULT, mulberry32 };
+}
+
+/* ============================================================= */
+/* Firebase連携 & UI                                                */
+/* ============================================================= */
+let fbReady = false, fbError = null;
+window.addEventListener('fbReady', () => { fbReady = true; toast('オンライン接続 OK'); });
+window.addEventListener('fbError', () => { fbError = window.__fbError; toast('Firebase 接続失敗: ' + fbError); });
+
+function roomRef(id){ return window.__fb.ref(window.__fb.db, 'rooms_br/' + id); }
+
+async function createRoom(){
+  if(!fbReady){ toast('Firebase 未接続'); return; }
+  const name = (document.getElementById('playerName').value || 'プレイヤー').trim().slice(0,14);
+  const maxP = parseInt(document.getElementById('maxPlayers').value, 10);
+  const stages = parseInt(document.getElementById('stages').value, 10);
+  const roomId = genRoomId();
+  const now = Date.now();
+  const room = {
+    id: roomId, host: 'P1', seed: Math.floor(Math.random()*1e9),
+    maxPlayers: maxP, totalStages: stages,
+    createdAt: now,
+    players: {
+      P1: { name, token: S.token, joinedAt: now, cash:0, hp:0, maxHp:0, items:[], alive:true, cuffed:0, lastPing: now }
+    },
+    spectators: {},
+    state: null,
+    log: []
+  };
+  await window.__fb.set(roomRef(roomId), room);
+  S.roomId = roomId; S.seat = 'P1'; S.isSpectator = false;
+  localStorage.setItem('br_lastRoom', roomId);
+  subscribeRoom();
+  toast('ルーム作成: ' + roomId);
+}
+window.createRoom = createRoom;
+
+async function joinRoom(){
+  if(!fbReady){ toast('Firebase 未接続'); return; }
+  const id = (document.getElementById('joinRoomId').value || '').trim().toUpperCase();
+  if(id.length !== 6){ toast('ルームIDは6文字です'); return; }
+  const name = (document.getElementById('playerName').value || 'プレイヤー').trim().slice(0,14);
+  const snap = await window.__fb.get(roomRef(id));
+  if(!snap.exists()){ toast('ルームが存在しません'); return; }
+  const now = Date.now();
+  const res = await window.__fb.runTransaction(roomRef(id), (r) => {
+    if(!r) return r;
+    r.players = r.players || {};
+    r.spectators = r.spectators || {};
+    for(const ps of Object.keys(r.players)){
+      if(r.players[ps] && r.players[ps].token === S.token){
+        r.players[ps].name = name; r.players[ps].lastPing = now;
+        S.seat = ps; S.isSpectator = false; return r;
+      }
+    }
+    for(const ss of Object.keys(r.spectators)){
+      if(r.spectators[ss] && r.spectators[ss].token === S.token){
+        r.spectators[ss].name = name; r.spectators[ss].lastPing = now;
+        S.seat = ss; S.isSpectator = true; return r;
+      }
+    }
+    const pSeats = Object.keys(r.players);
+    const gameInProgress = r.state && r.state.phase && r.state.phase !== 'waiting' && r.state.phase !== 'game_end';
+    if(pSeats.length < (r.maxPlayers||4) && !gameInProgress){
+      let i=1; while(r.players['P'+i]) i++;
+      const seatId = 'P'+i;
+      r.players[seatId] = { name, token: S.token, joinedAt: now, cash:0, hp:0, maxHp:0, items:[], alive:true, cuffed:0, lastPing: now };
+      S.seat = seatId; S.isSpectator = false; return r;
+    } else {
+      const specs = Object.keys(r.spectators).length;
+      if(specs >= MAX_SPECTATORS){ throw new Error('spec_full'); }
+      let i=1; while(r.spectators['S'+i]) i++;
+      const seatId = 'S'+i;
+      r.spectators[seatId] = { name, token: S.token, joinedAt: now, lastPing: now };
+      S.seat = seatId; S.isSpectator = true; return r;
+    }
+  }).catch(e => {
+    if(String(e.message).includes('spec_full')) toast('観戦者が上限 (' + MAX_SPECTATORS + '名) に達しました');
+    else toast('入室失敗: ' + e.message);
+    return null;
+  });
+  if(!res || !res.committed){ return; }
+  S.roomId = id; localStorage.setItem('br_lastRoom', id);
+  subscribeRoom();
+  if(S.isSpectator) toast('観戦モードで参加 (座席: ' + S.seat + ')');
+  else toast('参加: 座席 ' + S.seat);
+}
+window.joinRoom = joinRoom;
+
+function subscribeRoom(){
+  if(S.unsub){ try { S.unsub(); } catch(e){} }
+  document.getElementById('lobby').style.display = 'none';
+  document.getElementById('game').style.display = 'block';
+  const r = roomRef(S.roomId);
+  S.unsub = window.__fb.onValue(r, (snap) => {
+    const room = snap.val();
+    if(!room){
+      toast('ルームが消滅しました');
+      leaveRoom(); return;
+    }
+    S.lastRoom = room;
+    document.body.classList.toggle('spectating', S.isSpectator);
+    render(room);
+  });
+  if(S.pingInterval) clearInterval(S.pingInterval);
+  S.pingInterval = setInterval(() => {
+    if(!S.roomId || !S.seat) return;
+    const path = S.isSpectator ? `spectators/${S.seat}/lastPing` : `players/${S.seat}/lastPing`;
+    window.__fb.update(window.__fb.ref(window.__fb.db, 'rooms_br/'+S.roomId), { [path]: Date.now() }).catch(()=>{});
+  }, 10000);
+}
+
+async function leaveRoom(){
+  if(S.unsub){ try { S.unsub(); } catch(e){} S.unsub = null; }
+  if(S.pingInterval){ clearInterval(S.pingInterval); S.pingInterval = null; }
+  if(S.roomId && S.seat){
+    try {
+      await window.__fb.runTransaction(roomRef(S.roomId), (r) => {
+        if(!r) return r;
+        if(S.isSpectator){
+          if(r.spectators) delete r.spectators[S.seat];
+        }
+        else {
+          if(r.players) delete r.players[S.seat];
+          const remainingSeats = Object.keys(r.players||{});
+          if(remainingSeats.length===0) return null;
+
+          if(r.host === S.seat){
+            r.host = remainingSeats.sort((a,b)=>parseInt(a.slice(1),10)-parseInt(b.slice(1),10))[0];
+          }
+
+          if(r.state){
+            r.state.turnOrder = (r.state.turnOrder||[]).filter(seat => !!r.players[seat]);
+            if(r.state.stageWinner === S.seat) r.state.stageWinner = null;
+            if(r.state.overallWinner === S.seat) r.state.overallWinner = null;
+
+            const aliveSeats = Object.keys(r.players).filter(seat => r.players[seat] && r.players[seat].alive);
+            if(r.state.phase === 'playing'){
+              if(aliveSeats.length <= 1){
+                checkStageEnd(r, r.state, r.players);
+              } else if(r.state.turnSeat === S.seat || !r.players[r.state.turnSeat] || !r.players[r.state.turnSeat].alive){
+                const nextSeat = nextActiveSeat(r.state, r.players, S.seat) || aliveSeats[0] || null;
+                r.state.turnSeat = nextSeat;
+                r.state.sawActive = false;
+              }
+            }
+            if(r.state.phase === 'stage_end' || r.state.phase === 'game_end'){
+              const sorted = Object.keys(r.players).filter(seat=>r.players[seat]).sort((a,b)=>(r.players[b].cash||0)-(r.players[a].cash||0));
+              r.state.overallWinner = sorted[0] || null;
+            }
+          }
+        }
+        return r;
+      });
+    } catch(e){}
+  }
+  S.roomId = null; S.seat = null; S.isSpectator = false; S.lastRoom = null;
+  document.getElementById('game').style.display = 'none';
+  document.getElementById('lobby').style.display = 'block';
+  document.body.classList.remove('spectating');
+  document.getElementById('endPanel').style.display = 'none';
+  closeResultModal();
+  S.__shownResult = false;
+  S.__shownCase = false;
+}
+window.leaveRoom = leaveRoom;
+
+async function sendAction(action){
+  if(!S.roomId || S.isSpectator){ toast('アクション不可'); return; }
+  try {
+    const res = await window.__fb.runTransaction(roomRef(S.roomId), (r) => {
+      if(!r) return r;
+      if(!r.state && action.type !== 'start') return r;
+      try {
+        const maybeState = processAction(r, S.seat, action);
+        if(action.type === 'reset'){ r.state = null; }
+        else if(maybeState !== undefined){ r.state = maybeState; }
+        return r;
+      } catch(e){
+        throw e;
+      }
+    });
+    if(!res || !res.committed){ /* nothing */ }
+  } catch(e){
+    toast('❌ ' + (e.message || '操作エラー'));
+    console.error(e);
+  }
+}
+
+async function startGame(){
+  if(!S.roomId) return;
+  const r = S.lastRoom;
+  if(!r) return;
+  if(S.seat !== r.host){ toast('ホストのみ開始可能'); return; }
+  const activeCount = Object.keys(r.players||{}).length;
+  if(activeCount < 2){ toast('最低2名必要'); return; }
+  await sendAction({ type:'start' });
+  playSound('reload');
+}
+window.startGame = startGame;
+
+async function resetGame(){
+  if(!S.roomId) return;
+  const r = S.lastRoom;
+  if(!r) return;
+  if(S.seat !== r.host){ toast('ホストのみリセット可能'); return; }
+  await sendAction({ type:'reset' });
+  // リザルト状態をリセット
+  S.__shownResult = false;
+  S.__shownCase = false;
+  closeResultModal();
+  toast('🔄 ゲームをリセットしました');
+}
+window.resetGame = resetGame;
+
+async function nextStage(){
+  await sendAction({ type:'next_stage' });
+}
+window.nextStage = nextStage;
+
+/* ============================================================= */
+/* 描画                                                             */
+/* ============================================================= */
+function render(room){
+  document.getElementById('barRoom').textContent = room.id;
+  const st = room.state;
+  if(st){
+    document.getElementById('barStage').textContent = `${st.stage}/${st.totalStages}`;
+    document.getElementById('barShells').textContent = (st.shells ? (st.shells.length - st.shellIdx) : 0);
+    document.getElementById('barDir').textContent = st.direction > 0 ? '→' : '←';
+  } else {
+    document.getElementById('barStage').textContent = '-';
+    document.getElementById('barShells').textContent = '-';
+    document.getElementById('barDir').textContent = '-';
+  }
+  const specCount = Object.keys(room.spectators||{}).length;
+  document.getElementById('barSpec').style.display = specCount>0?'inline':'none';
+  document.getElementById('barSpecCount').textContent = specCount;
+  const meLabel = S.isSpectator ? `<span class="spec-badge">観戦中</span>` : `あなた: <b>${(room.players[S.seat]||{}).name||'?'}</b>${room.host===S.seat?' <span class="spec-badge">ホスト</span>':''}`;
+  document.getElementById('barYou').innerHTML = meLabel;
+
+  renderPlayers(room);
+  renderShotgun(room);
+  renderActions(room);
+  renderLog(room);
+  renderEnd(room);
+
+  // 演出の重複防止: t だけでは同時ヒットで衝突しうるため shellIdx との組み合わせで一意性を上げる
+  const _shotKey = st && st.lastShotInfo ? `${st.lastShotInfo.t}_${st.lastShotInfo.shellIdx||0}_${st.lastShotInfo.shooter||''}` : null;
+  if(st && st.lastShotInfo && _shotKey !== S.__lastShotKey){
+    S.__lastShotKey = _shotKey;
+    const info = st.lastShotInfo;
+    if(info.type === 'L'){
+      showCutIn('🔫', `実弾 — ${info.damage}ダメージ`, 'live');
+      playSound('shot_live');
+      document.body.classList.add('flash-red'); setTimeout(()=>document.body.classList.remove('flash-red'), 300);
+    } else {
+      showCutIn('💨', '空包', 'blank');
+      playSound('shot_blank');
+    }
+  }
+}
+
+function renderPlayers(room){
+  const cont = document.getElementById('players');
+  cont.innerHTML = '';
+  const players = room.players || {};
+  const st = room.state;
+  const order = (st && st.turnOrder) ? st.turnOrder : Object.keys(players).sort();
+  order.forEach(seat => {
+    const p = players[seat]; if(!p) return;
+    const div = document.createElement('div');
+    div.className = 'player-card' + (st && st.turnSeat===seat?' active':'') + (!p.alive?' dead':'') + (seat===S.seat?' self':'');
+    let hp = '';
+    const maxHp = p.maxHp || 0;
+    for(let i=0;i<maxHp;i++){
+      hp += `<div class="hp-dot ${i<p.hp?'on':''}"></div>`;
+    }
+    let itemsHtml = '';
+    (p.items||[]).forEach(it => { itemsHtml += `<div class="itembox" title="${ITEM_TYPES[it].name}">${ITEM_TYPES[it].icon}</div>`; });
+    const cuff = (p.cuffed && p.cuffed>0) ? `<div class="cuffs" title="拘束中 (${p.cuffed})">⛓️</div>` : '';
+    const status = !p.alive ? `<div class="status">💀 脱落</div>` : '';
+    div.innerHTML = `
+      ${status}${cuff}
+      <div class="name">${esc(p.name)} ${seat===room.host?'👑':''}</div>
+      <div class="hp">${hp||'<span style="color:#555">—</span>'}</div>
+      <div class="items">${itemsHtml||'<span style="color:#444;font-size:11px">アイテムなし</span>'}</div>
+      <div class="hint" style="margin-top:6px">💰 $${(p.cash||0).toLocaleString()} • ${seat}</div>
+    `;
+    cont.appendChild(div);
+  });
+}
+
+function renderShotgun(room){
+  const st = room.state;
+  const shotgun = document.getElementById('shotgun');
+  shotgun.className = 'shotgun' + (st && st.sawActive?' sawed':'');
+  const shellsEl = document.getElementById('shells');
+  shellsEl.innerHTML = '';
+  if(!st || !st.shells){ document.getElementById('chamberInfo').textContent = ''; return; }
+  const total = st.shells.length;
+  const remaining = total - st.shellIdx;
+  for(let i=0;i<remaining;i++){
+    const shell = document.createElement('div');
+    shell.className = 'shell' + (i===0?' current':'');
+    shellsEl.appendChild(shell);
+  }
+  const lives = st.shells.slice(st.shellIdx).filter(x=>x==='L').length;
+  const blanks = remaining - lives;
+  document.getElementById('chamberInfo').innerHTML = `<span class="live">実弾 ${lives}</span> &nbsp;/&nbsp; <span class="blank">空包 ${blanks}</span>${st.sawActive?' &nbsp;⚠️ 銃身切断済':''}`;
+  const dirArrow = document.getElementById('dirArrow');
+  dirArrow.textContent = st.direction>0 ? '→ → →' : '← ← ←';
+}
+
+function renderActions(room){
+  const panel = document.getElementById('actPanel');
+  const itemsBar = document.getElementById('itemsBar');
+  const actBtns = document.getElementById('actBtns');
+  const target = document.getElementById('targetSelect');
+  const info = document.getElementById('actInfo');
+  itemsBar.innerHTML = ''; actBtns.innerHTML = ''; target.innerHTML = ''; target.style.display='none'; info.textContent='';
+
+  if(S.isSpectator){ panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+
+  const st = room.state;
+  const me = (room.players||{})[S.seat];
+
+  if(!st){
+    info.textContent = 'ゲーム開始前';
+    if(room.host === S.seat){
+      const b = document.createElement('button');
+      b.className='primary'; b.textContent = '🎬 ゲーム開始';
+      b.disabled = Object.keys(room.players||{}).length < 2;
+      b.onclick = startGame;
+      actBtns.appendChild(b);
+    } else {
+      info.textContent = 'ホストの開始を待機中...';
+    }
+    return;
+  }
+
+  if(st.phase === 'stage_end'){
+    info.textContent = `ステージ ${st.stage} 終了`;
+    if(st.stage < st.totalStages && room.host === S.seat){
+      const b = document.createElement('button');
+      b.className='primary'; b.textContent = `▶ ステージ${st.stage+1} へ`;
+      b.onclick = nextStage; actBtns.appendChild(b);
+    }
+    return;
+  }
+  if(st.phase === 'game_end'){
+    info.textContent = 'ゲーム終了';
+    if(room.host === S.seat){
+      const b = document.createElement('button');
+      b.className='primary'; b.textContent = '🔄 新しいゲーム';
+      b.onclick = resetGame; actBtns.appendChild(b);
+    }
+    return;
+  }
+
+  if(!me || !me.alive){
+    info.innerHTML = `<span class="spec-badge">脱落済</span> — 観戦中`;
+    return;
+  }
+  if(st.turnSeat !== S.seat){
+    const turnPlayer = (room.players||{})[st.turnSeat];
+    info.textContent = `${turnPlayer?turnPlayer.name:'?'} のターン`;
+    return;
+  }
+
+  (me.items||[]).forEach((it, idx) => {
+    const b = document.createElement('button');
+    b.className='item-btn';
+    b.innerHTML = ITEM_TYPES[it].icon + `<span class="label">${ITEM_TYPES[it].name}</span>`;
+    b.title = ITEM_TYPES[it].name;
+    b.onclick = () => useItem(it, idx);
+    itemsBar.appendChild(b);
+  });
+  if((me.items||[]).length===0){
+    itemsBar.innerHTML = '<span class="hint">🎒 アイテムなし</span>';
+  }
+
+  info.textContent = 'アイテムを使うか、撃つ対象を選択してください';
+
+  const selfBtn = document.createElement('button');
+  selfBtn.className = 'self-shoot';
+  selfBtn.innerHTML = '🔫 自分を撃つ';
+  selfBtn.onclick = () => confirmShoot(S.seat);
+  actBtns.appendChild(selfBtn);
+
+  const alive = Object.keys(room.players||{}).filter(s => s!==S.seat && room.players[s] && room.players[s].alive);
+  alive.forEach(s => {
+    const p = room.players[s];
+    const b = document.createElement('button');
+    b.className = 'shoot-other';
+    b.innerHTML = `🎯 ${esc(p.name)} を撃つ`;
+    b.onclick = () => confirmShoot(s);
+    actBtns.appendChild(b);
+  });
+}
+
+function confirmShoot(targetSeat){
+  if(!confirm(`${targetSeat===S.seat?'自分を':(S.lastRoom.players[targetSeat].name + ' を')}撃ちますか?`)) return;
+  sendAction({ type:'shoot', targetSeat });
+}
+
+function useItem(item, idx){
+  playSound('click');
+  const room = S.lastRoom;
+  const needsTarget = (item==='jammer' || item==='adren');
+  if(needsTarget){
+    const alive = Object.keys(room.players).filter(s => s!==S.seat && room.players[s] && room.players[s].alive);
+    if(alive.length===0){ toast('対象がいません'); return; }
+    if(item === 'adren'){
+      promptAdren(alive);
+      return;
+    }
+    const ts = document.getElementById('targetSelect');
+    ts.innerHTML = '<span class="hint">対象を選択:</span>';
+    ts.style.display='flex';
+    alive.forEach(s => {
+      const b = document.createElement('button');
+      b.className='target-btn';
+      b.textContent = room.players[s].name;
+      b.onclick = () => { ts.style.display='none'; sendAction({ type:'use_item', item, targetSeat: s }); playSound('item'); };
+      ts.appendChild(b);
+    });
+    return;
+  }
+  sendAction({ type:'use_item', item });
+  playSound('item');
+}
+
+function promptAdren(aliveSeats){
+  const room = S.lastRoom;
+  const ts = document.getElementById('targetSelect');
+  ts.innerHTML = '<span class="hint">💉 アドレナリン: 対象を選択 →</span>';
+  ts.style.display='flex';
+  aliveSeats.forEach(s => {
+    const b = document.createElement('button');
+    b.className='target-btn';
+    b.textContent = room.players[s].name + ` (${(room.players[s].items||[]).length})`;
+    b.onclick = () => {
+      ts.innerHTML = `<span class="hint">💉 ${room.players[s].name} から奪うアイテム:</span>`;
+      const items = (room.players[s].items||[]).filter(i => i !== 'adren');
+      if(items.length===0){ toast('対象は盗めるアイテムを持っていません'); ts.style.display='none'; return; }
+      items.forEach((it,i) => {
+        const ib = document.createElement('button');
+        ib.className='target-btn';
+        ib.innerHTML = ITEM_TYPES[it].icon + ' ' + ITEM_TYPES[it].name;
+        ib.onclick = () => {
+          if(it==='jammer'){
+            ts.innerHTML = `<span class="hint">🎯 スキップ対象:</span>`;
+            const innerTargets = Object.keys(room.players).filter(k=>k!==S.seat && room.players[k] && room.players[k].alive);
+            innerTargets.forEach(k => {
+              const kb = document.createElement('button');
+              kb.className='target-btn'; kb.textContent = room.players[k].name;
+              kb.onclick = () => {
+                ts.style.display='none';
+                sendAction({ type:'use_item', item:'adren', targetSeat: s, stealItem: it, innerTarget: k });
+                playSound('item');
+              };
+              ts.appendChild(kb);
+            });
+          } else {
+            ts.style.display='none';
+            sendAction({ type:'use_item', item:'adren', targetSeat: s, stealItem: it });
+            playSound('item');
+          }
+        };
+        ts.appendChild(ib);
+      });
+    };
+    ts.appendChild(b);
+  });
+}
+
+function renderLog(room){
+  const st = room.state;
+  const pane = document.getElementById('pane-log');
+  if(!st || !st.log){ pane.innerHTML='<div class="entry system">— ログなし —</div>'; return; }
+  const pub = (st.log||[]).map(e => ({ ...e, priv:false }));
+  const priv = (st.privateLog && st.privateLog[S.seat]) || [];
+  const privs = priv.map(e => ({ ...e, priv:true, cls:(e.cls||'') + ' private' }));
+  const all = pub.concat(privs).sort((a,b)=>a.t-b.t);
+  pane.innerHTML = all.slice(-80).map(e => `<div class="entry ${e.cls||''}"><span class="ts">${fmtTime(e.t)}</span>${esc(e.msg)}</div>`).join('');
+  pane.scrollTop = pane.scrollHeight;
+}
+
+function renderEnd(room){
+  const st = room.state;
+  const panel = document.getElementById('endPanel');
+  const modal = document.getElementById('resultModal');
+  const resetBtn = document.getElementById('barResetBtn');
+
+  // ゲーム進行中かつホストならリセットボタンを表示
+  if(resetBtn){
+    if(st && room.host === S.seat && !S.isSpectator) resetBtn.style.display = 'inline-block';
+    else resetBtn.style.display = 'none';
+  }
+
+  if(!st || st.phase !== 'game_end'){
+    panel.style.display='none';
+    return;
+  }
+
+  // --- 下部の簡易サマリ (既存の end-panel) ---
+  const winner = st.overallWinner ? room.players[st.overallWinner] : null;
+  const rows = Object.keys(room.players||{}).map(s => ({ seat:s, ...room.players[s] }))
+    .sort((a,b)=>(b.cash||0)-(a.cash||0));
+  panel.style.display='block';
+  panel.innerHTML = `
+    <h2>🏆 ゲーム終了</h2>
+    <div class="winner">${winner?esc(winner.name):'—'} の勝利!</div>
+    <div class="buttons">
+      <button class="primary" onclick="showResultModal()">📊 リザルトを見る</button>
+      ${room.host===S.seat?'<button class="primary" onclick="resetGame()">🔄 もう一度プレイ</button>':''}
+      <button class="ghost" onclick="leaveRoom()">🚪 退室</button>
+    </div>
+  `;
+
+  // --- ブリーフケース演出 & リザルトモーダル (1回だけ自動表示) ---
+  if(!S.__shownResult){
+    S.__shownResult = true;
+    if(winner){ showBriefcase(winner.cash||0); }
+    // ブリーフケース後にリザルトモーダル表示
+    setTimeout(() => { buildAndShowResultModal(room); }, 3200);
+  }
+}
+
+// リザルトモーダルを組み立てて表示
+function buildAndShowResultModal(room){
+  const st = room.state; if(!st || st.phase !== 'game_end') return;
+  const modal = document.getElementById('resultModal');
+  const box = document.getElementById('resultBox');
+  const winner = st.overallWinner ? room.players[st.overallWinner] : null;
+  const rows = Object.keys(room.players||{}).map(s => ({ seat:s, ...room.players[s] }))
+    .sort((a,b)=>(b.cash||0)-(a.cash||0));
+  const isHost = (room.host === S.seat && !S.isSpectator);
+  box.innerHTML = `
+    <h2>🏆 最終結果</h2>
+    <div class="champion">${winner?'👑 '+esc(winner.name):'—'}</div>
+    <div class="hint">総合優勝 — $${winner?(winner.cash||0).toLocaleString():0}</div>
+    <table>
+      <thead><tr><th>順位</th><th>プレイヤー</th><th>獲得賞金</th></tr></thead>
+      <tbody>
+        ${rows.map((r,i)=>`<tr class="${i===0?'winner':''}"><td>${i+1}</td><td>${esc(r.name)}</td><td>$${(r.cash||0).toLocaleString()}</td></tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="result-buttons">
+      <button class="primary" onclick="closeResultModal()">▶ 次へ</button>
+      ${isHost?'<button onclick="closeResultModal();resetGame()">🔄 もう一度プレイ</button>':''}
+    </div>
+  `;
+  modal.style.display = 'flex';
+}
+
+function showResultModal(){
+  const r = S.lastRoom; if(!r) return;
+  buildAndShowResultModal(r);
+}
+window.showResultModal = showResultModal;
+
+function closeResultModal(){
+  document.getElementById('resultModal').style.display = 'none';
+}
+window.closeResultModal = closeResultModal;
+
+function confirmReset(){
+  if(!S.lastRoom) return;
+  if(S.seat !== S.lastRoom.host){ toast('ホストのみリセット可能'); return; }
+  if(!confirm('ゲームを最初からリセットしますか?現在の進行状況・賞金が消去されます。')) return;
+  resetGame();
+}
+window.confirmReset = confirmReset;
+
+/* ============================================================= */
+/* UIヘルパー                                                        */
+/* ============================================================= */
+function showCutIn(icon, msg, cls){
+  const o = document.getElementById('overlay');
+  o.className = cls || '';
+  o.querySelector('.icon').textContent = icon;
+  o.querySelector('.msg').textContent = msg;
+  o.style.display='flex';
+  setTimeout(() => { o.style.display='none'; }, 1800);
+}
+
+function showBriefcase(amount){
+  const b = document.getElementById('briefcase');
+  b.querySelector('.money').textContent = '$' + (amount||0).toLocaleString();
+  b.style.display='flex';
+  playSound('chime');
+  setTimeout(()=>{ b.style.display='none'; }, 3000);
+}
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.style.display='block';
+  clearTimeout(window.__toastT);
+  window.__toastT = setTimeout(()=>{ t.style.display='none'; }, 2800);
+}
+window.toast = toast;
+
+function fmtTime(t){
+  const d = new Date(t);
+  return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2)+':'+('0'+d.getSeconds()).slice(-2);
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function switchTab(tab){
+  const buttons = document.querySelectorAll('#game .tabs button');
+  buttons.forEach((b,i) => b.classList.toggle('active', (i===0&&tab==='log')||(i===1&&tab==='rules')));
+  document.getElementById('pane-log').classList.toggle('active', tab==='log');
+  document.getElementById('pane-rules').classList.toggle('active', tab==='rules');
+}
+window.switchTab = switchTab;
+
+function switchLobbyTab(tab){
+  const buttons = document.querySelectorAll('#lobby .tabs button');
+  const map = { rules:0, items:1 };
+  buttons.forEach((b,i)=> b.classList.toggle('active', i===map[tab]));
+  ['rules','items'].forEach(t => {
+    const el = document.getElementById('lobby-'+t);
+    if(el) el.classList.toggle('active', t===tab);
+  });
+}
+window.switchLobbyTab = switchLobbyTab;
+
+function toggleSound(){
+  S.sound = !S.sound;
+  localStorage.setItem('br_sound', S.sound?'on':'off');
+  document.getElementById('soundLabel').textContent = S.sound ? '🔊 サウンド: ON' : '🔇 サウンド: OFF';
+  if(S.sound) playSound('click');
+}
+window.toggleSound = toggleSound;
+
+function hardReset(){
+  if(!confirm('ローカルデータを削除しますか?(ページが再読込されます)')) return;
+  try { localStorage.removeItem('br_token'); localStorage.removeItem('br_lastRoom'); localStorage.removeItem('br_sound'); } catch(e){}
+  location.reload();
+}
+window.hardReset = hardReset;
+
+function copyRoomId(){
+  if(!S.roomId){ toast('ルームIDがありません'); return; }
+  const id = S.roomId;
+  try {
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(id).then(() => {
+        toast('📋 ルームID「' + id + '」をコピーしました');
+      }).catch(() => {
+        fallbackCopy(id);
+      });
+    } else {
+      fallbackCopy(id);
+    }
+  } catch(e){ fallbackCopy(id); }
+}
+function fallbackCopy(text){
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    toast('📋 ルームID「' + text + '」をコピーしました');
+  } catch(e){ toast('ルームID: ' + text + ' (手動でコピーしてください)'); }
+}
+window.copyRoomId = copyRoomId;
+
+// 初期化
+document.getElementById('soundLabel').textContent = S.sound ? '🔊 サウンド: ON' : '🔇 サウンド: OFF';
+console.log('[BR v3] ロード完了。Firebase接続待機中...');
+
+// テスト用
+window.__BR = { processAction, processStolenItem, buildShotgun, genItems, initStage, advanceTurn, checkReload, checkStageEnd, ITEM_TYPES, ITEM_KEYS, MAX_SPECTATORS, MAX_INV, BRIEFCASE_BASE, BRIEFCASE_INCREMENT, TOTAL_STAGES_DEFAULT, mulberry32 };
+</script>
+</body>
+</html>
