@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="バックショット・ルーレット マルチプレイヤー・クローン。本家2-4人ゲームを忠実に再現。">
 <meta name="theme-color" content="#0b0b0b">
-<title>バックショット・ルーレット — マルチプレイヤー (v7.0)</title>
+<title>バックショット・ルーレット — マルチプレイヤー (v8.0)</title>
 <style>
 /* ========== 本家に寄せたダーク×赤のCRT風スタイル (v4 装填アニメーション強化) ========== */
 :root{
@@ -772,7 +772,7 @@ body.spectating .action-panel{display:none}
 }
 @keyframes resultStageIn{ to{ transform:scale(1) } }
 #itemResultOverlay .ic{
-  font-size:130px;margin-bottom:18px;
+  font-size:150px;margin-bottom:20px;
   filter:drop-shadow(0 0 24px rgba(255,200,80,.7));
 }
 #itemResultOverlay .title{
@@ -780,7 +780,7 @@ body.spectating .action-panel{display:none}
   color:#c8b090;letter-spacing:.25em;margin-bottom:16px;
 }
 #itemResultOverlay .main{
-  font-family:'Courier New',monospace;font-size:62px;font-weight:900;
+  font-family:'Courier New',monospace;font-size:76px;font-weight:900;
   letter-spacing:.08em;line-height:1.15;padding:24px 40px;
   border:3px solid rgba(220,180,120,.5);border-radius:12px;
   background:rgba(12,8,8,.7);
@@ -797,23 +797,40 @@ body.spectating .action-panel{display:none}
 /* v6.0 他プレイヤー向けミニ通知 (誰が何を使ったか、結果なし)       */
 /* ============================================================= */
 #itemNotify{
-  position:fixed;top:20px;left:50%;transform:translateX(-50%);
-  display:none;pointer-events:none;z-index:188;
-  font-family:'Courier New',monospace;
-  padding:12px 28px;background:rgba(18,10,12,.92);
-  border:1px solid rgba(220,180,120,.4);border-radius:8px;
-  box-shadow:0 6px 24px rgba(0,0,0,.7);
-  color:#e8dcc0;font-size:16px;letter-spacing:.1em;
+  position:fixed;inset:0;display:none;pointer-events:none;z-index:205;
+  align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center, rgba(12,8,12,.72) 0%, rgba(0,0,0,.35) 70%);
+  backdrop-filter:blur(3px);
 }
-#itemNotify .ni-icon{ font-size:24px;margin-right:8px;vertical-align:middle; }
-#itemNotify .ni-user{ color:#ffd870;font-weight:700; }
-#itemNotify .ni-item{ color:#c8b090; }
-#itemNotify.show{ display:block; animation:notifyFade 2.2s ease-out forwards; }
+#itemNotify .stage{
+  text-align:center;transform:scale(.6);
+  animation:notifyStageIn .5s cubic-bezier(.2,1.6,.4,1) forwards;
+  font-family:'Courier New',monospace;
+}
+@keyframes notifyStageIn{ to{ transform:scale(1) } }
+#itemNotify .ni-icon{
+  font-size:120px;display:block;margin:0 auto 14px;
+  filter:drop-shadow(0 0 24px rgba(255,200,80,.7));
+  animation:notifyIconFlash .8s ease-out;
+}
+@keyframes notifyIconFlash{
+  0%{ transform:scale(.5) rotate(-8deg); opacity:0 }
+  60%{ transform:scale(1.2) rotate(4deg); opacity:1 }
+  100%{ transform:scale(1) rotate(0); opacity:1 }
+}
+#itemNotify .ni-line{
+  font-size:28px;letter-spacing:.12em;
+  background:rgba(12,8,8,.75);
+  border:2px solid rgba(220,180,120,.5);border-radius:10px;
+  padding:18px 34px;display:inline-block;
+  box-shadow:0 10px 36px rgba(0,0,0,.8), inset 0 0 30px rgba(255,180,100,.1);
+}
+#itemNotify .ni-user{ color:#ffd870;font-weight:900;text-shadow:0 0 14px rgba(255,200,80,.6); }
+#itemNotify .ni-sep { color:#888;margin:0 10px; }
+#itemNotify .ni-item{ color:#e8dcc0;font-weight:700; }
+#itemNotify.show{ display:flex; animation:notifyFade 2.0s ease-out forwards; }
 @keyframes notifyFade{
-  0%{ opacity:0; transform:translateX(-50%) translateY(-20px) }
-  12%{ opacity:1; transform:translateX(-50%) translateY(0) }
-  82%{ opacity:1 }
-  100%{ opacity:0; transform:translateX(-50%) translateY(-10px) }
+  0%{ opacity:0 } 10%{ opacity:1 } 85%{ opacity:1 } 100%{ opacity:0 }
 }
 
 </style>
@@ -997,8 +1014,18 @@ body.spectating .action-panel{display:none}
   </div>
 </div>
 
-<!-- v6: 他プレイヤー向けミニ通知 -->
-<div id="itemNotify"></div>
+<!-- v8: 他プレイヤー向け大カットイン通知 -->
+<div id="itemNotify">
+  <div class="stage">
+    <div class="ni-icon" id="niIcon">🎴</div>
+    <div class="ni-line">
+      <span class="ni-user" id="niUser">—</span>
+      <span class="ni-sep">が</span>
+      <span class="ni-item" id="niItem">—</span>
+      <span class="ni-sep">を使用</span>
+    </div>
+  </div>
+</div>
 
 
 <!-- Firebase -->
@@ -1225,8 +1252,9 @@ function initStage(room, stage){
   const activeSeats = Object.keys(players).filter(s => players[s]);
   const playerCount = activeSeats.length;
   const seed = room.seed || 12345;
-  const chargeRng = mulberry32(seed + stage*2003);
-  const charges = CHARGE_MIN + Math.floor(chargeRng()*(CHARGE_MAX-CHARGE_MIN+1));
+  // v8: ステージに応じて HP を段階的に増加 (本家準拠: S1=2, S2=4, S3=5, S4=5, S5=6)
+  const hpByStage = { 1:2, 2:4, 3:5, 4:5, 5:6 };
+  const charges = hpByStage[stage] || Math.min(6, 2 + stage);
   const shells = buildShotgun(seed, stage);
   // 本家: 2〜5個/ラウンド
   const itemsCount = itemsPerStage(stage);
@@ -1475,6 +1503,11 @@ function processAction(room, seat, action){
         break;
       }
       case 'saw':{
+        // v8: 既に銃身切断中なら使用不可 (二重使用防止、アイテムを戻す)
+        if(state.sawActive){
+          sourcePlayer.items.splice(idx, 0, item);
+          throw new Error('saw already active');
+        }
         state.sawActive = true;
         appendLog(state, `🪚 ${me.name} は銃身を切り詰めた(次弾2ダメージ)`, 'item');
         state.privateResult = state.privateResult || {};
@@ -1629,10 +1662,18 @@ function processStolenItem(room, seat, item, innerTarget){
   const state = room.state, players = room.players;
   const me = players[seat];
   switch(item){
-    case 'cig':
-      if(me.hp < me.maxHp){ me.hp += 1; appendLog(state,`🚬 (強奪) ${me.name} は煙草で1HP回復`,'item'); }
-      else appendLog(state,`🚬 (強奪) ${me.name} は煙草を吸ったが満タン`,'item');
+    case 'cig':{
+      state.privateResult = state.privateResult || {};
+      if(me.hp < me.maxHp){
+        me.hp += 1;
+        appendLog(state,`🚬 (強奪) ${me.name} は煙草で1HP回復`,'item');
+        state.privateResult[seat] = { t: Date.now(), item:'cig', kind:'neutral', main:'+1 HP', title:'煙草 (強奪)', sub:'体力が回復しました' };
+      } else {
+        appendLog(state,`🚬 (強奪) ${me.name} は煙草を吸ったが満タン`,'item');
+        state.privateResult[seat] = { t: Date.now(), item:'cig', kind:'neutral', main:'HP 最大', title:'煙草 (強奪)', sub:'これ以上回復できません' };
+      }
       break;
+    }
     case 'beer':{
       // 本家仕様: beer は saw をキャンセルしない
       if(state.shellIdx >= state.shells.length){
@@ -1641,28 +1682,45 @@ function processStolenItem(room, seat, item, innerTarget){
         break;
       }
       const cur = state.shells[state.shellIdx]; state.shellIdx += 1;
-      appendLog(state,`🍺 (強奪) ${me.name} はビールを使用 — 弾を排出 (${cur==='L'?'実弾':'空包'})`, cur==='L'?'live':'blank');
+      appendLog(state,`🍺 (強奪) ${me.name} はビールを使用 — 弾を排出`, 'item');
+      // v8: 本人向け結果通知
+      state.privateResult = state.privateResult || {};
+      state.privateResult[seat] = { t: Date.now(), item:'beer', kind: cur==='L'?'live':'blank', main: cur==='L'?'実弾':'空包', title:'排出された弾 (強奪)', sub:'ビールで弾を排出しました' };
+      // 全員向け薬莢色配信
+      state.lastBeerEject = { t: Date.now(), type: cur, shooter: seat };
       checkReload(state, players);
       break;
     }
     case 'saw':
-      state.sawActive = true; appendLog(state,`🪚 (強奪) ${me.name} は銃身を切り詰めた`,'item');
+      // v8: 既に銃身切断中なら強奪saw使用はエラー
+      if(state.sawActive){
+        throw new Error('saw already active');
+      }
+      state.sawActive = true;
+      appendLog(state,`🪚 (強奪) ${me.name} は銃身を切り詰めた`,'item');
+      // 本人向け結果通知
+      state.privateResult = state.privateResult || {};
+      state.privateResult[seat] = { t: Date.now(), item:'saw', kind:'neutral', main:'×2 ダメージ', title:'ハンドソー (強奪)', sub:'次の発砲のみ2ダメージ' };
       break;
     case 'glass':{
       const cur = state.shells[state.shellIdx];
       state.privateLog = state.privateLog || {};
       state.privateLog[seat] = state.privateLog[seat] || [];
       state.privateLog[seat].push({ t: Date.now(), msg:`🔍 (強奪) 現在の弾は ${cur==='L'?'実弾':'空包'}`, cls: cur==='L'?'live':'blank' });
+      // v8: 本人向け結果通知 (大カットイン用)
+      state.privateResult = state.privateResult || {};
+      state.privateResult[seat] = { t: Date.now(), item:'glass', kind: cur==='L'?'live':'blank', main: cur==='L'?'実弾':'空包', title:'現在の弾は (強奪)', sub:'虫眼鏡で確認しました' };
       appendLog(state,`🔍 (強奪) ${me.name} は弾を確認`,'item');
       break;
     }
     case 'jammer':{
       const tgt = players[innerTarget];
       if(!tgt || !tgt.alive || innerTarget === seat) throw new Error('invalid inner target');
-      // 本家仕様: 既に cuffed な相手にはスキップ適用不可
       if(tgt.cuffed && tgt.cuffed > 0) throw new Error('inner target already cuffed');
       tgt.cuffed = 1;
       appendLog(state,`📡 (強奪) ${me.name} → ${tgt.name} の次ターンをスキップ`,'item');
+      state.privateResult = state.privateResult || {};
+      state.privateResult[seat] = { t: Date.now(), item:'jammer', kind:'neutral', main:tgt.name, title:'拘束した相手 (強奪)', sub:'次ターンをスキップさせます' };
       break;
     }
     case 'phone':{
@@ -1670,8 +1728,10 @@ function processStolenItem(room, seat, item, innerTarget){
       const remaining = state.shells.length - state.shellIdx;
       state.privateLog = state.privateLog || {};
       state.privateLog[seat] = state.privateLog[seat] || [];
+      state.privateResult = state.privateResult || {};
       if(remaining < 3){
         state.privateLog[seat].push({ t: Date.now(), msg: `📱 (強奪) 携帯: "HOW UNFORTUNATE" — 情報なし (残弾${remaining}発)`, cls:'system' });
+        state.privateResult[seat] = { t: Date.now(), item:'phone', kind:'neutral', main:'HOW UNFORTUNATE', title:'携帯の結果 (強奪)', sub:'情報なし' };
       } else {
         const rng = mulberry32((room.seed||1)+state.shellIdx*991+state.roundItemsGenerated*17+seat.charCodeAt(0)+999);
         const pickIdx = state.shellIdx + 1 + Math.floor(rng()*(remaining-1));
@@ -1679,22 +1739,34 @@ function processStolenItem(room, seat, item, innerTarget){
         const type = state.shells[pickIdx];
         const ordName = ['','1番目','2番目','3番目','4番目','5番目','6番目','7番目','8番目'][ord] || (ord+'番目');
         state.privateLog[seat].push({ t: Date.now(), msg:`📱 (強奪) "${ordName}の弾は ${type==='L'?'実弾':'空包'}"`, cls: type==='L'?'live':'blank' });
+        state.privateResult[seat] = { t: Date.now(), item:'phone', kind: type==='L'?'live':'blank', main: `${ordName} → ${type==='L'?'実弾':'空包'}`, title:'携帯の結果 (強奪)', sub:'未来の弾を盗み聞き' };
       }
       appendLog(state,`📱 (強奪) ${me.name} は携帯を使用`,'item');
       break;
     }
-    case 'invert':
+    case 'invert':{
       if(state.shellIdx >= state.shells.length){
         appendLog(state, `🔄 (強奪) ${me.name} はインバーターを使ったが薬室は空`, 'system');
         break;
       }
-      state.shells[state.shellIdx] = state.shells[state.shellIdx]==='L'?'B':'L';
+      const newTypeS = state.shells[state.shellIdx]==='L'?'B':'L';
+      state.shells[state.shellIdx] = newTypeS;
       appendLog(state,`🔄 (強奪) ${me.name} はインバーター使用`,'item');
+      state.privateResult = state.privateResult || {};
+      state.privateResult[seat] = { t: Date.now(), item:'invert', kind: newTypeS==='L'?'live':'blank', main:'→ '+(newTypeS==='L'?'実弾':'空包'), title:'反転後の弾 (強奪)', sub:'インバーターで弾を反転' };
       break;
+    }
     case 'remote':{
       const activeCount = Object.values(players).filter(p=>p&&p.alive).length;
-      if(activeCount < 3){ appendLog(state,`🎛️ (強奪) リモコンは2人戦で無効`,'system'); }
-      else { state.direction = -state.direction; appendLog(state,`🎛️ (強奪) ${me.name} はリモコンで逆転`,'item'); }
+      state.privateResult = state.privateResult || {};
+      if(activeCount < 3){
+        appendLog(state,`🎛️ (強奪) リモコンは2人戦で無効`,'system');
+        state.privateResult[seat] = { t: Date.now(), item:'remote', kind:'neutral', main:'無効', title:'リモコン (強奪)', sub:'2人戦では無効です' };
+      } else {
+        state.direction = -state.direction;
+        appendLog(state,`🎛️ (強奪) ${me.name} はリモコンで逆転`,'item');
+        state.privateResult[seat] = { t: Date.now(), item:'remote', kind:'neutral', main: state.direction>0?'→ 順方向':'← 逆方向', title:'ターン方向 (強奪)', sub:'リモコンで順番を逆転' };
+      }
       break;
     }
     default:
@@ -2522,16 +2594,20 @@ function showItemResult(res){
    ========================================================== */
 function showItemNotify(userName, itemKey){
   const el = document.getElementById('itemNotify');
-  if(!el) return;
+  const iconEl = document.getElementById('niIcon');
+  const userEl = document.getElementById('niUser');
+  const itemEl = document.getElementById('niItem');
+  if(!el || !iconEl || !userEl || !itemEl) return;
   const meta = (typeof ITEM_TYPES !== 'undefined' ? ITEM_TYPES[itemKey] : null) || { icon:'🎴', name:itemKey };
-  el.innerHTML = '<span class="ni-icon">'+meta.icon+'</span>'
-    + '<span class="ni-user">'+esc(userName||'')+'</span>'
-    + ' が <span class="ni-item">'+meta.name+'</span> を使用';
+  iconEl.textContent = meta.icon;
+  userEl.textContent = userName || '相手';
+  itemEl.textContent = meta.name;
   el.classList.remove('show');
   void el.offsetWidth;
   el.classList.add('show');
+  playSound('item');
   clearTimeout(window.__notifyT);
-  window.__notifyT = setTimeout(function(){ el.classList.remove('show'); }, 2200);
+  window.__notifyT = setTimeout(function(){ el.classList.remove('show'); }, 2000);
 }
 
 function showCutIn(icon, msg, cls){
