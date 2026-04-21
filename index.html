@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="バックショット・ルーレット マルチプレイヤー・クローン。本家2-4人ゲームを忠実に再現。">
 <meta name="theme-color" content="#0b0b0b">
-<title>バックショット・ルーレット — マルチプレイヤー (v8.0)</title>
+<title>バックショット・ルーレット — マルチプレイヤー (v9.0)</title>
 <style>
 /* ========== 本家に寄せたダーク×赤のCRT風スタイル (v4 装填アニメーション強化) ========== */
 :root{
@@ -833,6 +833,50 @@ body.spectating .action-panel{display:none}
   0%{ opacity:0 } 10%{ opacity:1 } 85%{ opacity:1 } 100%{ opacity:0 }
 }
 
+
+/* ============================================================= */
+/* v9 ジャマー全員通知 (誰が誰を一回休みに)                         */
+/* ============================================================= */
+#jammerAll{
+  position:fixed;inset:0;display:none;pointer-events:none;z-index:208;
+  align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center, rgba(30,14,20,.78) 0%, rgba(0,0,0,.4) 70%);
+  backdrop-filter:blur(3px);
+}
+#jammerAll .stage{
+  text-align:center; transform:scale(.6);
+  animation:jammerStageIn .5s cubic-bezier(.2,1.6,.4,1) forwards;
+  font-family:'Courier New',monospace;
+}
+@keyframes jammerStageIn{ to{ transform:scale(1) } }
+#jammerAll .ja-icon{
+  font-size:120px;display:block;margin:0 auto 14px;
+  filter:drop-shadow(0 0 24px rgba(255,140,60,.75));
+  animation:jammerIconShake .9s ease-out;
+}
+@keyframes jammerIconShake{
+  0%{ transform:scale(.5) rotate(-20deg); opacity:0 }
+  40%{ transform:scale(1.3) rotate(15deg); opacity:1 }
+  60%{ transform:scale(1.05) rotate(-8deg) }
+  80%{ transform:scale(1.1) rotate(6deg) }
+  100%{ transform:scale(1) rotate(0) }
+}
+#jammerAll .ja-line{
+  font-size:28px;letter-spacing:.1em;
+  background:rgba(14,10,10,.82);
+  border:2px solid rgba(255,140,60,.55);border-radius:10px;
+  padding:20px 34px;display:inline-block;
+  box-shadow:0 10px 38px rgba(0,0,0,.85), inset 0 0 30px rgba(255,140,60,.12);
+}
+#jammerAll .ja-by{ color:#ffd870;font-weight:900;text-shadow:0 0 14px rgba(255,200,80,.7); }
+#jammerAll .ja-sep{ color:#888;margin:0 10px; }
+#jammerAll .ja-tgt{ color:#ff8c5a;font-weight:900;text-shadow:0 0 14px rgba(255,140,60,.7); }
+#jammerAll .ja-action{ color:#e8dcc0; }
+#jammerAll.show{ display:flex; animation:jammerFade 2.2s ease-out forwards; }
+@keyframes jammerFade{
+  0%{ opacity:0 } 10%{ opacity:1 } 85%{ opacity:1 } 100%{ opacity:0 }
+}
+
 </style>
 </head>
 <body>
@@ -1023,6 +1067,20 @@ body.spectating .action-panel{display:none}
       <span class="ni-sep">が</span>
       <span class="ni-item" id="niItem">—</span>
       <span class="ni-sep">を使用</span>
+    </div>
+  </div>
+</div>
+
+<!-- v9: ジャマー全員通知 -->
+<div id="jammerAll">
+  <div class="stage">
+    <div class="ja-icon">📡</div>
+    <div class="ja-line">
+      <span class="ja-by" id="jaBy">—</span>
+      <span class="ja-sep">が</span>
+      <span class="ja-tgt" id="jaTgt">—</span>
+      <span class="ja-sep">を</span>
+      <span class="ja-action">一回休みに!</span>
     </div>
   </div>
 </div>
@@ -1538,6 +1596,8 @@ function processAction(room, seat, action){
         appendLog(state, `📡 ジャマー ${me.name} → ${tgt.name} の次ターンをスキップ`, 'item');
         state.privateResult = state.privateResult || {};
         state.privateResult[seat] = { t: Date.now(), item:'jammer', kind:'neutral', main:tgt.name, title:'拘束した相手', sub:'次ターンをスキップさせます' };
+        // v9: 全員向け公開通知 (○○ が ×× を一回休みに)
+        state.lastJammer = { t: Date.now(), by: seat, byName: me.name, target: targetSeat, targetName: tgt.name };
         break;
       }
       case 'phone':{
@@ -1567,11 +1627,11 @@ function processAction(room, seat, action){
           appendLog(state, `🔄 ${me.name} はインバーターを使ったが薬室は空`, 'system');
           break;
         }
-        const newType = state.shells[state.shellIdx]==='L' ? 'B' : 'L';
-        state.shells[state.shellIdx] = newType;
+        // v9: 反転後の弾種は本人にも表示しない (使用したという演出のみ)
+        state.shells[state.shellIdx] = state.shells[state.shellIdx]==='L' ? 'B' : 'L';
         appendLog(state, `🔄 ${me.name} はインバーターで弾を反転`, 'item');
         state.privateResult = state.privateResult || {};
-        state.privateResult[seat] = { t: Date.now(), item:'invert', kind: newType==='L'?'live':'blank', main:'→ '+(newType==='L'?'実弾':'空包'), title:'反転後の弾', sub:'インバーターで弾を反転' };
+        state.privateResult[seat] = { t: Date.now(), item:'invert', kind:'neutral', main:'弾を反転', title:'インバーター', sub:'現在の弾を反転しました' };
         break;
       }
       case 'adren':{
@@ -1645,9 +1705,11 @@ function processAction(room, seat, action){
         'blank');
       state.lastShotInfo = { type:'B', shooter:seat, target:targetSeat, damage:0, self:isSelf, t: Date.now(), shellIdx: state.shellIdx };
       checkReload(state, players);
-      if(isSelf){
-        // 自分を空包で撃った場合はターン継続
+      // v9: 明確化 — 自分自身かつ空包の場合のみターン継続、それ以外は必ず advanceTurn
+      if(isSelf === true && targetSeat === seat){
+        // 自分を空包で撃った場合はターン継続 (本家仕様)
       } else {
+        // 相手に空包 → 必ずターン送り (ハンドソーの有無に関係なく)
         advanceTurn(state, players);
       }
     }
@@ -1721,6 +1783,8 @@ function processStolenItem(room, seat, item, innerTarget){
       appendLog(state,`📡 (強奪) ${me.name} → ${tgt.name} の次ターンをスキップ`,'item');
       state.privateResult = state.privateResult || {};
       state.privateResult[seat] = { t: Date.now(), item:'jammer', kind:'neutral', main:tgt.name, title:'拘束した相手 (強奪)', sub:'次ターンをスキップさせます' };
+      // v9: 全員向け公開通知
+      state.lastJammer = { t: Date.now(), by: seat, byName: me.name, target: innerTarget, targetName: tgt.name };
       break;
     }
     case 'phone':{
@@ -1749,11 +1813,11 @@ function processStolenItem(room, seat, item, innerTarget){
         appendLog(state, `🔄 (強奪) ${me.name} はインバーターを使ったが薬室は空`, 'system');
         break;
       }
-      const newTypeS = state.shells[state.shellIdx]==='L'?'B':'L';
-      state.shells[state.shellIdx] = newTypeS;
+      // v9: 反転後の弾種は本人にも表示しない (使用したという演出のみ)
+      state.shells[state.shellIdx] = state.shells[state.shellIdx]==='L'?'B':'L';
       appendLog(state,`🔄 (強奪) ${me.name} はインバーター使用`,'item');
       state.privateResult = state.privateResult || {};
-      state.privateResult[seat] = { t: Date.now(), item:'invert', kind: newTypeS==='L'?'live':'blank', main:'→ '+(newTypeS==='L'?'実弾':'空包'), title:'反転後の弾 (強奪)', sub:'インバーターで弾を反転' };
+      state.privateResult[seat] = { t: Date.now(), item:'invert', kind:'neutral', main:'弾を反転', title:'インバーター (強奪)', sub:'現在の弾を反転しました' };
       break;
     }
     case 'remote':{
@@ -2411,7 +2475,9 @@ function renderLog(room){
         ['📱','phone'],['💉','adren'],['🔄','invert'],['📡','jammer'],['🎛️','remote']
       ];
       const hit = pairs.find(function(p){ return m.indexOf(p[0])>=0; });
-      if(hit && newest.cls === 'item' && typeof showItemNotify === 'function'){
+      // v9: ジャマーは lastJammer 経由で showJammerAll を使うのでスキップ
+      if(hit && hit[1] === 'jammer'){ /* skip - use jammer all-notify */ }
+      else if(hit && newest.cls === 'item' && typeof showItemNotify === 'function'){
         // 「🚬 <使用者名> は ...」から使用者名を抽出
         const um = m.match(/^[^\s]+\s+([^\s]+)\s*は/);
         const userName = um ? um[1] : '';
@@ -2429,6 +2495,13 @@ function renderLog(room){
           showItemNotify(userName, hit[1]);
         }
       }
+    }
+  }
+  // v9: lastJammer (ジャマー全員通知) を検知して大カットイン
+  if(st && st.lastJammer && st.lastJammer.t !== S.__lastJammerT){
+    S.__lastJammerT = st.lastJammer.t;
+    if(typeof showJammerAll === 'function'){
+      showJammerAll(st.lastJammer.byName, st.lastJammer.targetName);
     }
   }
   // v7: lastBeerEject (全員に薬莢色を配信) を検知して ejectCasing
@@ -2592,6 +2665,23 @@ function showItemResult(res){
 /* ==========================================================
    v6.0 他プレイヤー向けミニ通知
    ========================================================== */
+
+
+function showJammerAll(byName, targetName){
+  const el = document.getElementById('jammerAll');
+  const byEl = document.getElementById('jaBy');
+  const tgtEl = document.getElementById('jaTgt');
+  if(!el || !byEl || !tgtEl) return;
+  byEl.textContent = byName || '—';
+  tgtEl.textContent = targetName || '—';
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  if(typeof playSound === 'function') playSound('item');
+  clearTimeout(window.__jammerT);
+  window.__jammerT = setTimeout(function(){ el.classList.remove('show'); }, 2200);
+}
+
 function showItemNotify(userName, itemKey){
   const el = document.getElementById('itemNotify');
   const iconEl = document.getElementById('niIcon');
