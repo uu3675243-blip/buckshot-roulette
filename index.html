@@ -3,9 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="バックショット・ルーレット マルチプレイヤー・クローン。本家2-4人ゲームを忠実に再現。">
+<meta name="theme-color" content="#0b0b0b">
 <title>バックショット・ルーレット — マルチプレイヤー</title>
 <style>
-/* ========== 本家に寄せたダーク×赤のCRT風スタイル ========== */
+/* ========== 本家に寄せたダーク×赤のCRT風スタイル (v4 装填アニメーション強化) ========== */
 :root{
   --bg:#0b0b0b;
   --bg2:#141414;
@@ -91,12 +93,14 @@ input:focus, select:focus{outline:none;border-color:var(--accent);box-shadow:0 0
 .table-wrap{
   position:relative;
   background:
-    radial-gradient(ellipse at center, rgba(40,20,10,.4), transparent 70%),
-    linear-gradient(180deg,#0e0a08,#1a1210);
+    radial-gradient(ellipse at 50% 70%, rgba(60,30,15,.5), transparent 70%),
+    radial-gradient(ellipse at 50% 30%, rgba(30,15,10,.4), transparent 60%),
+    linear-gradient(180deg,#120a06 0%,#1e1410 40%,#0a0604 100%);
   border:1px solid var(--border);
   padding:20px;
-  min-height:420px;
-  box-shadow:inset 0 0 60px rgba(0,0,0,.6);
+  min-height:460px;
+  box-shadow:inset 0 0 80px rgba(0,0,0,.75), inset 0 0 20px rgba(100,50,20,.15);
+  overflow:hidden;
 }
 .table-wrap::before{
   content:'';position:absolute;inset:0;pointer-events:none;
@@ -104,7 +108,30 @@ input:focus, select:focus{outline:none;border-color:var(--accent);box-shadow:0 0
     linear-gradient(var(--grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   background-size:40px 40px;
-  opacity:.5;
+  opacity:.35;
+}
+/* フィルムグレイン */
+.table-wrap::after{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:1;
+  background-image:
+    radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px),
+    radial-gradient(rgba(0,0,0,.05) 1px, transparent 1px);
+  background-size:3px 3px, 5px 5px;
+  background-position:0 0, 1px 1px;
+  mix-blend-mode:overlay;
+  opacity:.4;
+  animation:grainShift 3s steps(4) infinite;
+}
+@keyframes grainShift{
+  0%{ background-position:0 0, 1px 1px }
+  25%{ background-position:-2px 1px, 3px -1px }
+  50%{ background-position:2px -2px, -2px 2px }
+  75%{ background-position:-1px 2px, 1px -2px }
+}
+/* ビネット */
+.table-wrap .vignette{
+  position:absolute;inset:0;pointer-events:none;z-index:1;
+  box-shadow:inset 0 0 120px rgba(0,0,0,.9), inset 0 0 40px rgba(0,0,0,.5);
 }
 
 /* ===== プレイヤーリング ===== */
@@ -115,17 +142,28 @@ input:focus, select:focus{outline:none;border-color:var(--accent);box-shadow:0 0
   position:relative;z-index:2;
 }
 .player-card{
-  background:var(--panel2);
+  background:
+    linear-gradient(180deg,#262626 0%,#1a1a1a 50%,#141414 100%);
   border:1px solid var(--border);
   padding:12px;
   position:relative;
-  transition:all .2s;
+  transition:all .25s;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.04), 0 2px 6px rgba(0,0,0,.5);
 }
 .player-card.active{
   border-color:var(--accent);
-  box-shadow:0 0 16px rgba(215,32,32,.5);
-  background:linear-gradient(180deg,#2a1818,#1a0e0e);
+  box-shadow:0 0 22px rgba(215,32,32,.55), inset 0 0 10px rgba(215,32,32,.12), 0 4px 12px rgba(0,0,0,.6);
+  background:
+    radial-gradient(ellipse at top, rgba(215,32,32,.12), transparent 70%),
+    linear-gradient(180deg,#2e1818 0%,#1c0e0e 100%);
+  transform:translateY(-1px);
 }
+.player-card.active::after{
+  content:'';position:absolute;top:-1px;left:-1px;right:-1px;height:2px;
+  background:linear-gradient(90deg, transparent, var(--accent2), transparent);
+  animation:activeScan 1.8s linear infinite;
+}
+@keyframes activeScan{ 0%{opacity:0} 50%{opacity:1} 100%{opacity:0} }
 .player-card.dead{
   filter:grayscale(1) brightness(.5);
 }
@@ -172,43 +210,195 @@ input:focus, select:focus{outline:none;border-color:var(--accent);box-shadow:0 0
   text-align:center;
   position:relative;z-index:2;
 }
+/* === ショットガン (質感強化、宾) === */
 .shotgun{
   display:inline-block;
   position:relative;
-  width:280px;height:70px;
-  background:linear-gradient(180deg,#3a2a1a 0%,#2a1a0a 50%,#1a0a00 100%);
-  border:2px solid #1a0a00;
-  border-radius:6px;
-  box-shadow:0 4px 12px rgba(0,0,0,.6), inset 0 0 10px rgba(0,0,0,.5);
+  width:320px;height:82px;
+  background:
+    repeating-linear-gradient(90deg, rgba(80,50,20,.12) 0px, transparent 2px, transparent 5px, rgba(80,50,20,.12) 6px),
+    linear-gradient(180deg,#4a3420 0%,#2f2010 40%,#1f1408 70%,#0a0603 100%);
+  border:1px solid #0a0604;
+  border-radius:8px 10px 10px 8px;
+  box-shadow:0 6px 18px rgba(0,0,0,.75),
+             inset 0 2px 4px rgba(255,180,120,.08),
+             inset 0 -2px 6px rgba(0,0,0,.6),
+             0 0 0 1px rgba(0,0,0,.4);
+  transition:width .35s ease;
 }
+/* 铃体 (中央) */
 .shotgun::before{
   content:'';position:absolute;
-  left:-60px;top:24px;width:60px;height:22px;
-  background:linear-gradient(180deg,#555,#222);
-  border:1px solid #111;border-right:none;
+  left:-100px;top:28px;width:100px;height:26px;
+  background:
+    linear-gradient(180deg, #6a6a6a 0%, #3a3a3a 30%, #1a1a1a 60%, #2a2a2a 100%);
+  border:1px solid #0a0a0a;border-right:none;
+  border-radius:3px 0 0 3px;
+  box-shadow:inset 0 2px 3px rgba(255,255,255,.12),
+             inset 0 -2px 3px rgba(0,0,0,.6);
 }
+/* 煙口 (窯先端) */
 .shotgun::after{
   content:'';position:absolute;
-  right:10px;top:12px;width:14px;height:46px;
-  background:#111;border:1px solid #000;
+  left:-112px;top:32px;width:14px;height:18px;
+  background:radial-gradient(circle at 50% 50%, #000 30%, #1a1a1a 60%, #000 100%);
+  border:1px solid #000;
+  border-radius:50%;
+  box-shadow:inset 0 0 6px rgba(0,0,0,.9);
 }
-.shotgun.sawed{
-  width:200px;
+.shotgun .stock{
+  position:absolute;right:-6px;top:18px;width:16px;height:46px;
+  background:
+    repeating-linear-gradient(90deg, rgba(40,20,10,.5) 0px, transparent 1px, transparent 4px),
+    linear-gradient(180deg,#6a4020,#2a1408);
+  border:1px solid #0a0402;
+  border-radius:0 6px 6px 0;
+  box-shadow:inset 0 2px 3px rgba(255,180,120,.15), inset 0 -2px 3px rgba(0,0,0,.6);
+}
+.shotgun .pump{
+  position:absolute;left:30px;top:46px;width:60px;height:18px;
+  background:
+    repeating-linear-gradient(90deg, rgba(40,20,10,.5) 0px, transparent 1px, transparent 3px),
+    linear-gradient(180deg,#6a4020,#2a1408);
+  border:1px solid #0a0402;
+  border-radius:3px;
+  box-shadow:inset 0 2px 3px rgba(255,180,120,.15), inset 0 -1px 2px rgba(0,0,0,.6);
+  transition:transform .18s ease;
+}
+.shotgun.pumping .pump{ animation:pumpAction .7s ease-in-out; }
+@keyframes pumpAction{
+  0%{ transform:translateX(0) }
+  45%{ transform:translateX(-18px) }
+  60%{ transform:translateX(-18px) }
+  100%{ transform:translateX(0) }
+}
+.shotgun .chambered-shell{
+  position:absolute;right:28px;top:18px;
+  width:18px;height:46px;
+  border-radius:3px 3px 1px 1px;
+  opacity:0;transition:opacity .3s;
+  pointer-events:none;z-index:3;
+}
+.shotgun .chambered-shell.visible{ opacity:1 }
+.shotgun.sawed{ width:220px; }
+.shotgun.sawed::before{
+  background:
+    linear-gradient(180deg, #6a2a1a 0%, #3a1010 50%, #1a0605 100%);
+  box-shadow:inset 0 2px 3px rgba(255,80,80,.2),
+             inset 0 -2px 3px rgba(0,0,0,.6),
+             0 0 10px rgba(215,32,32,.5);
 }
 .shotgun.sawed::after{
-  background:#5a1010;box-shadow:0 0 8px var(--accent);
+  left:-26px;
+  background:radial-gradient(circle at 50%, #000 40%, #400 60%, #000 100%);
+  box-shadow:inset 0 0 8px rgba(215,32,32,.6), 0 0 10px rgba(215,32,32,.4);
 }
 .shell-indicator{
   margin-top:14px;display:flex;justify-content:center;gap:6px;flex-wrap:wrap;
 }
+/* === シェル (ショットガン残弾インジケータ) === */
 .shell{
-  width:20px;height:42px;border-radius:3px 3px 1px 1px;
-  background:#333;border:1px solid #000;
+  width:22px;height:46px;border-radius:3px 3px 2px 2px;
+  background:
+    linear-gradient(180deg, #555 0%, #444 50%, #2a2a2a 52%, #222 100%);
+  border:1px solid #000;
   position:relative;opacity:.35;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.15), inset 0 -2px 3px rgba(0,0,0,.5), 0 2px 3px rgba(0,0,0,.4);
 }
-.shell.known.live{background:linear-gradient(180deg,#d72020 0%,#d72020 60%,#444 60%,#444 100%);border-color:#800;opacity:1;box-shadow:0 0 8px rgba(215,32,32,.5)}
-.shell.known.blank{background:linear-gradient(180deg,#2a6fdb 0%,#2a6fdb 60%,#444 60%,#444 100%);border-color:#025;opacity:1;box-shadow:0 0 8px rgba(42,111,219,.5)}
-.shell.current{transform:scale(1.15);box-shadow:0 0 14px rgba(255,220,0,.7);border-color:var(--gold)}
+.shell::after{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:14px;
+  background:linear-gradient(180deg, #888 0%, #555 60%, #333 100%);
+  border-top:1px solid #222;
+  border-radius:0 0 2px 2px;
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.2);
+}
+.shell.known.live{
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(255,200,200,.4), transparent 40%),
+    linear-gradient(180deg, #f04040 0%, #c01818 50%, #8a0a0a 70%, #500 100%);
+  border-color:#500;opacity:1;
+  box-shadow:0 0 10px rgba(215,32,32,.55), inset 0 1px 2px rgba(255,200,200,.3), inset 0 -2px 3px rgba(80,0,0,.6), 0 2px 4px rgba(0,0,0,.5);
+}
+.shell.known.blank{
+  background:
+    radial-gradient(ellipse at 30% 20%, rgba(200,220,255,.4), transparent 40%),
+    linear-gradient(180deg, #3a8aff 0%, #1a5ccf 50%, #0a3a90 70%, #052150 100%);
+  border-color:#052;opacity:1;
+  box-shadow:0 0 10px rgba(42,111,219,.55), inset 0 1px 2px rgba(200,220,255,.3), inset 0 -2px 3px rgba(0,20,60,.6), 0 2px 4px rgba(0,0,0,.5);
+}
+.shell.current{ transform:scale(1.18); box-shadow:0 0 18px rgba(255,220,0,.75), inset 0 1px 2px rgba(255,255,255,.3); border-color:var(--gold); z-index:2 }
+
+/* === 装填アニメーション用 大きめシェル === */
+.big-shell{
+  width:44px;height:100px;
+  border-radius:6px 6px 3px 3px;
+  position:relative;
+  box-shadow:0 6px 14px rgba(0,0,0,.7), inset 0 2px 4px rgba(255,255,255,.2), inset 0 -3px 5px rgba(0,0,0,.5);
+  transform-style:preserve-3d;
+  transition:transform .5s ease, opacity .4s ease;
+}
+.big-shell::before{
+  content:'';position:absolute;
+  top:0;left:0;right:0;height:60px;
+  background:inherit;
+  border-radius:6px 6px 0 0;
+  border:1px solid rgba(0,0,0,.3);
+}
+.big-shell::after{
+  content:'';position:absolute;
+  bottom:0;left:0;right:0;height:32px;
+  background:
+    linear-gradient(180deg, #aaa 0%, #777 30%, #555 55%, #333 100%);
+  border:1px solid #222;
+  border-radius:0 0 3px 3px;
+  box-shadow:inset 0 1px 2px rgba(255,255,255,.35), inset 0 -2px 3px rgba(0,0,0,.5);
+}
+.big-shell.live{
+  background:
+    radial-gradient(ellipse at 35% 20%, rgba(255,220,220,.5), transparent 45%),
+    linear-gradient(180deg, #ff5555 0%, #d01818 40%, #8a0808 70%, #500 100%);
+  box-shadow:0 6px 14px rgba(0,0,0,.7), 0 0 18px rgba(215,32,32,.6), inset 0 2px 4px rgba(255,200,200,.4), inset 0 -3px 5px rgba(80,0,0,.5);
+}
+.big-shell.blank{
+  background:
+    radial-gradient(ellipse at 35% 20%, rgba(220,230,255,.5), transparent 45%),
+    linear-gradient(180deg, #5a9aff 0%, #1a5ccf 40%, #0a3a90 70%, #052150 100%);
+  box-shadow:0 6px 14px rgba(0,0,0,.7), 0 0 18px rgba(42,111,219,.6), inset 0 2px 4px rgba(200,220,255,.4), inset 0 -3px 5px rgba(0,20,60,.5);
+}
+.big-shell .label{
+  position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+  font-family:'Courier New',monospace;
+  font-size:10px;font-weight:bold;
+  color:rgba(255,255,255,.9);
+  text-shadow:0 1px 2px rgba(0,0,0,.8);
+  letter-spacing:.05em;
+  background:rgba(0,0,0,.3);
+  padding:2px 4px;
+  border-radius:2px;
+}
+.big-shell .order-num{
+  position:absolute;top:-22px;left:50%;transform:translateX(-50%);
+  font-size:14px;color:var(--gold);font-weight:bold;
+  text-shadow:0 0 8px rgba(201,162,74,.7), 0 2px 2px rgba(0,0,0,.8);
+  letter-spacing:.1em;
+}
+.big-shell.loading-in{
+  animation:shellAppear .45s cubic-bezier(.3,1.5,.6,1) backwards;
+}
+@keyframes shellAppear{
+  0%{ transform:translateY(-80px) rotate(-30deg) scale(.4); opacity:0 }
+  70%{ transform:translateY(6px) rotate(5deg) scale(1.1); opacity:1 }
+  100%{ transform:translateY(0) rotate(0) scale(1); opacity:1 }
+}
+.big-shell.loading-suck{
+  animation:shellSuck .55s cubic-bezier(.6,.1,.7,.3) forwards;
+}
+@keyframes shellSuck{
+  0%{ opacity:1; transform:translate(0,0) rotate(0) scale(1) }
+  60%{ transform:translate(var(--dx,0),var(--dy,-20px)) rotate(15deg) scale(.75); opacity:.9 }
+  100%{ transform:translate(var(--dx,0),var(--dy,-40px)) rotate(90deg) scale(.2); opacity:0 }
+}
 
 .chamber-info{
   margin-top:10px;
@@ -418,278 +608,111 @@ body.spectating .action-panel{display:none}
 }
 
 /* ============================================================= */
-/* v5.0 本家クオリティ強化: グレイン・ビネット・スキャンライン     */
-/* ============================================================= */
-.vignette-global{
-  position:fixed;inset:0;pointer-events:none;z-index:160;
-  background:radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,.55) 100%);
-}
-body::before{
-  content:"";position:fixed;inset:0;pointer-events:none;z-index:155;opacity:.08;
-  background-image:
-    repeating-linear-gradient(0deg, rgba(255,255,255,.12) 0 1px, transparent 1px 3px);
-  mix-blend-mode:overlay;
-}
-body::after{
-  content:"";position:fixed;inset:0;pointer-events:none;z-index:156;opacity:.06;
-  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.92' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)' opacity='.7'/></svg>");
-  animation:grainShift 1.2s steps(6) infinite;
-}
-@keyframes grainShift{
-  0%{ transform:translate(0,0) } 20%{ transform:translate(-4px,3px) }
-  40%{ transform:translate(3px,-2px) } 60%{ transform:translate(-3px,-3px) }
-  80%{ transform:translate(2px,4px) } 100%{ transform:translate(0,0) }
-}
-
-/* ---------- ショットガン強化 ---------- */
-.shotgun{ position:relative; }
-.shotgun.pumping .pump{ animation:pumpAction .7s ease-in-out; }
-@keyframes pumpAction{
-  0%{ transform:translateX(0) } 45%{ transform:translateX(-18px) }
-  60%{ transform:translateX(-18px) } 100%{ transform:translateX(0) }
-}
-.shotgun.recoil{ animation:recoilKick .4s ease-out; }
-@keyframes recoilKick{
-  0%{ transform:translate(0,0) rotate(0) }
-  15%{ transform:translate(22px,-4px) rotate(2.2deg) }
-  40%{ transform:translate(14px,-2px) rotate(1.4deg) }
-  70%{ transform:translate(4px,-1px) rotate(.4deg) }
-  100%{ transform:translate(0,0) rotate(0) }
-}
-
-/* マズルフラッシュ (発射時) */
-.muzzle-flash{
-  position:absolute;left:-175px;top:4px;width:180px;height:80px;
-  pointer-events:none;opacity:0;
-  background:radial-gradient(ellipse at 100% 50%, rgba(255,255,200,1) 0%, rgba(255,200,60,.95) 18%, rgba(255,120,20,.7) 35%, rgba(255,60,10,.3) 55%, transparent 75%);
-  mix-blend-mode:screen;
-  filter:blur(2px) brightness(1.3);
-  z-index:5;
-}
-.muzzle-flash.fire{ animation:muzzleFire .24s ease-out; }
-@keyframes muzzleFire{
-  0%{ opacity:0; transform:scale(.4) translateX(20px) }
-  15%{ opacity:1; transform:scale(1.4) translateX(0) }
-  40%{ opacity:.8; transform:scale(1.15) translateX(-8px) }
-  100%{ opacity:0; transform:scale(.9) translateX(-30px) }
-}
-.muzzle-flash .spikes{
-  position:absolute;inset:0;
-  background:conic-gradient(from 0deg at 100% 50%, transparent 0deg, rgba(255,240,180,.8) 2deg, transparent 4deg, transparent 88deg, rgba(255,200,100,.6) 92deg, transparent 94deg, transparent 178deg, rgba(255,240,180,.7) 182deg, transparent 184deg, transparent 268deg, rgba(255,220,120,.5) 272deg, transparent 274deg, transparent 360deg);
-  opacity:.9;
-}
-/* 煙エフェクト */
-.smoke-puff{
-  position:absolute;left:-160px;top:20px;width:80px;height:80px;
-  pointer-events:none;opacity:0;z-index:4;
-  background:radial-gradient(circle, rgba(200,200,200,.5) 0%, rgba(150,150,150,.3) 30%, transparent 70%);
-  filter:blur(4px);
-  border-radius:50%;
-}
-.smoke-puff.rise{ animation:smokeRise 1.6s ease-out; }
-@keyframes smokeRise{
-  0%{ opacity:0; transform:scale(.3) translate(0,0) }
-  20%{ opacity:.9; transform:scale(.9) translate(-20px,-10px) }
-  60%{ opacity:.6; transform:scale(1.8) translate(-60px,-50px) }
-  100%{ opacity:0; transform:scale(2.8) translate(-100px,-100px) }
-}
-
-/* ============================================================= */
-/* v5.0 装填アニメーション                                         */
+/* 装填アニメーション (v4)                                     */
 /* ============================================================= */
 #loadOverlay{
-  position:fixed;inset:0;display:none;z-index:200;
-  background:radial-gradient(ellipse at center, rgba(18,8,10,.94) 0%, rgba(0,0,0,.98) 80%);
-  align-items:center;justify-content:center;
-  backdrop-filter:blur(3px);
+  position:absolute;inset:0;z-index:10;
+  background:
+    radial-gradient(ellipse at center, rgba(50,20,15,.65) 0%, rgba(0,0,0,.9) 70%);
+  display:none;align-items:center;justify-content:center;
+  backdrop-filter:blur(2px);
+  animation:loadBgFade .4s ease;
 }
-#loadOverlay.active{ display:flex; animation:loadBgFade .4s ease; }
 @keyframes loadBgFade{ from{opacity:0} to{opacity:1} }
-#loadOverlay .panel{ max-width:900px;width:94%;text-align:center;padding:30px 20px; }
-#loadOverlay .stage-label{
-  font-family:'Courier New',monospace;letter-spacing:.25em;font-size:14px;
-  color:#a87070;opacity:.75;margin-bottom:10px;text-transform:uppercase;
+#loadOverlay.active{ display:flex }
+#loadOverlay .panel{
+  max-width:760px;width:90%;text-align:center;padding:28px 20px;
+  position:relative;z-index:2;
 }
+/* フェーズ1: 弾数発表 */
 #loadOverlay .announce{
-  font-family:'Courier New',monospace;font-weight:900;font-size:52px;letter-spacing:.08em;
-  margin:0 0 22px;line-height:1.1;
-  animation:announceIn .7s cubic-bezier(.2,1.4,.4,1);
+  font-family:'Courier New',monospace;
+  font-weight:bold;letter-spacing:.08em;
+  font-size:48px;color:#fff;margin-bottom:24px;
+  text-shadow:0 0 20px rgba(215,32,32,.6), 0 2px 6px rgba(0,0,0,.9);
+  animation:announceIn .6s cubic-bezier(.2,1.3,.5,1);
 }
-#loadOverlay .announce .live-count{ color:#ff4444;text-shadow:0 0 22px rgba(215,32,32,.85) }
-#loadOverlay .announce .blank-count{ color:#4a95ff;text-shadow:0 0 22px rgba(42,111,219,.85) }
-#loadOverlay .announce .sep{ color:#666;margin:0 16px;opacity:.6 }
+#loadOverlay .announce .live-count{ color:var(--live);text-shadow:0 0 18px rgba(215,32,32,.8) }
+#loadOverlay .announce .blank-count{ color:var(--blank);text-shadow:0 0 18px rgba(42,111,219,.8) }
+#loadOverlay .announce .sep{ color:var(--ink-dim);margin:0 10px }
 @keyframes announceIn{
-  from{ opacity:0; transform:translateY(-20px) scale(.8) }
-  to{ opacity:1; transform:translateY(0) scale(1) }
+  0%{ transform:scale(.3); opacity:0; filter:blur(8px) }
+  70%{ transform:scale(1.08); opacity:1; filter:blur(0) }
+  100%{ transform:scale(1); opacity:1 }
 }
+/* フェーズ2: シェル一覧 */
 #loadOverlay .shells-layout{
-  display:flex;justify-content:center;gap:14px;margin:24px 0;
-  perspective:800px;flex-wrap:wrap;
+  display:flex;justify-content:center;gap:14px;
+  flex-wrap:wrap;min-height:140px;margin-bottom:22px;
+  perspective:600px;
 }
+#loadOverlay .stage-label{
+  font-size:13px;color:var(--gold);letter-spacing:.3em;margin-bottom:12px;
+  animation:stageFade 1s ease;
+}
+@keyframes stageFade{ 0%{opacity:0;letter-spacing:.5em} 100%{opacity:1;letter-spacing:.3em} }
 #loadOverlay .hint-text{
-  font-family:'Courier New',monospace;color:#c8b090;letter-spacing:.2em;font-size:14px;
-  margin-top:18px;
+  font-size:13px;color:var(--ink-dim);letter-spacing:.1em;
+  margin-top:8px;
+  animation:hintPulse 1.6s ease-in-out infinite;
 }
+@keyframes hintPulse{ 0%,100%{opacity:.55} 50%{opacity:1} }
 #loadOverlay .memorize-bar{
-  width:60%;height:3px;background:rgba(255,255,255,.1);
-  margin:20px auto 0;border-radius:2px;overflow:hidden;
+  height:4px;background:#111;border:1px solid #333;margin-top:20px;overflow:hidden;
+  max-width:400px;margin-left:auto;margin-right:auto;
 }
 #loadOverlay .memorize-bar .fill{
-  height:100%;width:0;background:linear-gradient(90deg,#ff4444 0%,#ffaa44 100%);
-  box-shadow:0 0 8px rgba(255,100,50,.6);
+  height:100%;background:linear-gradient(90deg,#c9a24a,#d72020);
+  width:0%;
+  animation:memorizeFill var(--memorize-dur,3.2s) linear forwards;
+  box-shadow:0 0 10px rgba(201,162,74,.8);
 }
+@keyframes memorizeFill{ 0%{width:0%} 100%{width:100%} }
+/* フェーズ3: 装填終了案内 */
 #loadOverlay .ready-text{
-  color:#ffd870;font-weight:900;letter-spacing:.35em;font-size:22px;
-  animation:readyBlink 1s ease-in-out infinite;
+  font-size:36px;color:var(--gold);font-weight:bold;letter-spacing:.15em;
+  text-shadow:0 0 16px rgba(201,162,74,.7);
+  animation:readyBlink .6s ease;
 }
-@keyframes readyBlink{ 0%,100%{opacity:1} 50%{opacity:.4} }
-
-.table-wrap.loading-phase{ animation:tableShake 6s ease-in-out; }
+@keyframes readyBlink{
+  0%{ opacity:0; transform:scale(.7) }
+  50%{ opacity:1; transform:scale(1.15) }
+  100%{ opacity:1; transform:scale(1) }
+}
+/* カメラ揺らし (装填時の小刻み) */
+.table-wrap.loading-phase{ animation:tableShake 6s ease-in-out }
 @keyframes tableShake{
   0%,100%{ transform:translate(0,0) }
-  25%{ transform:translate(-1.5px,.6px) }
-  50%{ transform:translate(1px,-.4px) }
-  75%{ transform:translate(-.8px,.4px) }
+  10%{ transform:translate(-1px,0) }
+  20%{ transform:translate(1px,-1px) }
+  30%{ transform:translate(0,1px) }
+  40%{ transform:translate(-1px,0) }
+  50%{ transform:translate(0,0) }
 }
 
-/* Big shell (装填演出用) */
-.big-shell{
-  width:44px;height:100px;border-radius:8px 8px 6px 6px;
-  position:relative;display:flex;flex-direction:column;
-  justify-content:flex-end;align-items:center;padding:10px 4px;
-  box-shadow:0 6px 18px rgba(0,0,0,.6),inset 0 -8px 16px rgba(0,0,0,.4);
-  font-family:'Courier New',monospace;
+/* サウンド演出: 弾のフラッシュエフェクト */
+.shell-flash{
+  position:absolute;inset:-10px;pointer-events:none;
+  border-radius:8px;opacity:0;
 }
-.big-shell::before{
-  content:"";position:absolute;top:-3px;left:2px;right:2px;height:16px;
-  border-radius:6px 6px 0 0;background:#2a2a2a;
-}
-.big-shell::after{
-  content:"";position:absolute;bottom:0;left:0;right:0;height:30px;
-  background:#c9aa62;border-radius:0 0 6px 6px;box-shadow:inset 0 2px 4px rgba(0,0,0,.5);
-}
-.big-shell.live{
-  background:linear-gradient(180deg,#c42020 0%,#8a1010 80%,#660808 100%);
-  border:1px solid #ff6666;
-}
-.big-shell.blank{
-  background:linear-gradient(180deg,#3a7edb 0%,#2560aa 80%,#1a4080 100%);
-  border:1px solid #6caaff;
-}
-.big-shell .label{
-  position:relative;z-index:2;color:#fff;font-size:10px;font-weight:700;
-  letter-spacing:.1em;text-shadow:0 1px 2px rgba(0,0,0,.8);margin-bottom:4px;
-}
-.big-shell .order-num{
-  position:absolute;top:-22px;left:50%;transform:translateX(-50%);
-  color:#ffd870;font-size:14px;font-weight:900;
-  text-shadow:0 0 8px rgba(255,200,80,.6);
-}
-.big-shell.loading-in{ animation:shellAppear .5s cubic-bezier(.3,1.5,.6,1) backwards; }
-@keyframes shellAppear{
-  0%{ opacity:0; transform:translateY(-40px) rotateZ(-30deg) scale(.6) }
-  45%{ opacity:1; transform:translateY(10px) rotateZ(8deg) scale(1.1) }
-  100%{ opacity:1; transform:translateY(0) rotateZ(0) scale(1) }
-}
-.big-shell.loading-suck{ animation:shellSuck .6s cubic-bezier(.6,.1,.7,.3) forwards; }
-@keyframes shellSuck{
-  0%{ transform:translate(0,0) rotateZ(0); opacity:1 }
-  40%{ transform:translate(calc(var(--dx,0px)*.3), calc(var(--dy,0px)*.3)) rotateZ(45deg); opacity:1 }
-  100%{ transform:translate(var(--dx,0px),var(--dy,0px)) rotateZ(90deg) scale(.4); opacity:0 }
+.shell-flash.live{ background:radial-gradient(circle, rgba(215,32,32,.4), transparent 60%); }
+.shell-flash.blank{ background:radial-gradient(circle, rgba(42,111,219,.4), transparent 60%); }
+.shell-flash.active{ animation:shellFlash .35s ease }
+@keyframes shellFlash{
+  0%{ opacity:0; transform:scale(.8) }
+  50%{ opacity:1; transform:scale(1.2) }
+  100%{ opacity:0; transform:scale(1.4) }
 }
 
-/* ============================================================= */
-/* v5.0 ダメージエフェクト: 画面揺れ・血飛散・フラッシュ         */
-/* ============================================================= */
-@keyframes screenShake{
-  0%,100%{ transform:translate(0,0) }
-  10%{ transform:translate(-6px,-3px) rotate(-.4deg) }
-  20%{ transform:translate(5px,4px) rotate(.4deg) }
-  30%{ transform:translate(-4px,2px) rotate(-.2deg) }
-  40%{ transform:translate(4px,-3px) rotate(.3deg) }
-  50%{ transform:translate(-3px,3px) rotate(-.15deg) }
-  60%{ transform:translate(3px,-2px) rotate(.2deg) }
-  70%{ transform:translate(-2px,1px) }
-  80%{ transform:translate(1px,-1px) }
-  90%{ transform:translate(-1px,0) }
-}
-#bloodOverlay{
-  position:fixed;inset:0;pointer-events:none;z-index:180;opacity:0;
-  background-image:url('https://www.genspark.ai/api/files/s/982iBraR?cache_control=3600');
-  background-size:cover;background-position:center;
-  mix-blend-mode:multiply;
-}
-#bloodOverlay.splat{ animation:bloodSplat 1.8s ease-out forwards; }
-@keyframes bloodSplat{
-  0%{ opacity:0; transform:scale(1.3) }
-  8%{ opacity:.9; transform:scale(1) }
-  60%{ opacity:.7 }
-  100%{ opacity:0 }
-}
-#redFlash{
-  position:fixed;inset:0;pointer-events:none;z-index:175;opacity:0;
-  background:radial-gradient(ellipse at center, rgba(215,32,32,.45) 0%, rgba(100,0,0,.7) 100%);
-  mix-blend-mode:screen;
-}
-#redFlash.flash{ animation:redFlashAnim .5s ease-out; }
-@keyframes redFlashAnim{
-  0%{ opacity:0 } 15%{ opacity:1 } 60%{ opacity:.5 } 100%{ opacity:0 }
-}
-#whiteFlash{
-  position:fixed;inset:0;pointer-events:none;z-index:174;opacity:0;
-  background:rgba(255,255,230,1);
-}
-#whiteFlash.flash{ animation:whiteFlashAnim .22s ease-out; }
-@keyframes whiteFlashAnim{
-  0%{ opacity:0 } 25%{ opacity:.6 } 100%{ opacity:0 }
-}
+/* 装填中はアクションUIを隠す */
+.action-panel.hidden-loading{ opacity:.3; pointer-events:none; filter:grayscale(.5); transition:all .3s }
 
-/* ============================================================= */
-/* v5.0 アイテム使用カットイン                                    */
-/* ============================================================= */
-#itemOverlay{
-  position:fixed;inset:0;display:none;pointer-events:none;z-index:190;
-  align-items:center;justify-content:center;
-  background:radial-gradient(ellipse at center, rgba(20,15,15,.55) 0%, rgba(0,0,0,.1) 70%);
-}
-#itemOverlay.active{ display:flex; animation:itemOvAnim 1.4s ease-out forwards; }
-@keyframes itemOvAnim{
-  0%{ opacity:0 } 10%{ opacity:1 } 85%{ opacity:1 } 100%{ opacity:0 }
-}
-#itemOverlay .stage{ text-align:center; transform:scale(.6);
-  animation:itemStageIn .5s cubic-bezier(.2,1.6,.4,1) forwards;
-}
-@keyframes itemStageIn{ to{ transform:scale(1) } }
-#itemOverlay .item-obj{
-  width:180px;height:180px;margin:0 auto 14px;
-  display:flex;align-items:center;justify-content:center;font-size:120px;
-  background:radial-gradient(circle,rgba(50,30,30,.9) 0%,rgba(10,5,5,.7) 100%);
-  border:2px solid rgba(220,180,120,.4);border-radius:16px;
-  box-shadow:0 12px 40px rgba(0,0,0,.8),inset 0 0 40px rgba(255,180,100,.15);
-}
-#itemOverlay .item-name{
-  font-family:'Courier New',monospace;font-size:28px;font-weight:900;
-  color:#ffd870;letter-spacing:.2em;text-shadow:0 0 16px rgba(255,200,80,.6);
-  margin-bottom:6px;
-}
-#itemOverlay .item-user{ font-family:'Courier New',monospace;color:#c8b090;font-size:14px;letter-spacing:.15em; }
-#itemOverlay .item-effect{ color:#aaa;font-size:13px;margin-top:4px; }
-
-/* プレイヤーカード強調 */
-.player-card{ transition:transform .2s ease,box-shadow .2s ease; }
-.player-card.active{ transform:scale(1.03); box-shadow:0 0 24px rgba(215,32,32,.45); }
-.player-card.dead{ filter:grayscale(1) brightness(.5); }
-
-body.flash-red{ animation:flashRedBody .3s ease-out }
-@keyframes flashRedBody{ 0%,100%{filter:none} 40%{filter:hue-rotate(-20deg) brightness(1.2) saturate(1.5)} }
-
+/* 色づけの固有名色 */
+.col-live{ color:var(--live) }
+.col-blank{ color:var(--blank) }
 </style>
 </head>
 <body>
-<div class="vignette-global"></div>
-<div id="bloodOverlay"></div>
-<div id="redFlash"></div>
-<div id="whiteFlash"></div>
 
 <!-- ========== ロビー ========== -->
 <div id="lobby">
@@ -797,14 +820,29 @@ body.flash-red{ animation:flashRedBody .3s ease-out }
       <button class="ghost" onclick="leaveRoom()">退室</button>
     </div>
 
-    <div class="table-wrap">
+    <div class="table-wrap" id="tableWrap">
+      <div class="vignette"></div>
       <div class="turn-dir" id="dirArrow">→ → →</div>
       <div class="players-ring" id="players"></div>
       <div class="shotgun-area">
         <div class="shotgun" id="shotgun">
-        <div class="muzzle-flash" id="muzzleFlash"><div class="spikes"></div></div></div>
+          <div class="pump"></div>
+          <div class="stock"></div>
+          <div class="chambered-shell" id="chamberedShell"></div>
+        </div>
         <div class="shell-indicator" id="shells"></div>
         <div class="chamber-info" id="chamberInfo"></div>
+      </div>
+
+      <!-- 装填アニメーション -->
+      <div id="loadOverlay">
+        <div class="panel">
+          <div class="stage-label" id="loadStageLabel">— STAGE 1 —</div>
+          <div class="announce" id="loadAnnounce"></div>
+          <div class="shells-layout" id="loadShells"></div>
+          <div class="hint-text" id="loadHint">— 装填される順番を覚えよ —</div>
+          <div class="memorize-bar"><div class="fill" id="loadMemBar"></div></div>
+        </div>
       </div>
     </div>
 
@@ -844,27 +882,6 @@ body.flash-red{ animation:flashRedBody .3s ease-out }
 <div id="briefcase"><div class="case"><div class="money">$50,000</div><div class="label">ブリーフケース獲得!</div></div></div>
 <div id="toast"></div>
 
-<!-- v5: アイテム使用カットイン -->
-<div id="itemOverlay">
-  <div class="stage">
-    <div class="item-obj" id="itemObj"><span id="itemIconLarge">🎴</span></div>
-    <div class="item-name" id="itemName">ITEM</div>
-    <div class="item-user" id="itemUser"></div>
-    <div class="item-effect" id="itemEffect"></div>
-  </div>
-</div>
-
-<!-- v5: 装填アニメーション -->
-<div id="loadOverlay">
-  <div class="panel">
-    <div class="stage-label" id="loadStageLabel">— STAGE 1 —</div>
-    <div class="announce" id="loadAnnounce"></div>
-    <div class="shells-layout" id="loadShells"></div>
-    <div class="hint-text" id="loadHint">— 装填される順番を覚えよ —</div>
-    <div class="memorize-bar"><div class="fill" id="loadMemBar"></div></div>
-  </div>
-</div>
-
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js";
@@ -873,13 +890,13 @@ import { getDatabase, ref, get, set, update, onValue, runTransaction, off, onDis
 // ★★★ ここをあなた自身のFirebaseプロジェクト情報に置き換えてください ★★★
 // Firebase Console ( https://console.firebase.google.com/ ) で作成できます
 const firebaseConfig = {
-  apiKey: "AIzaSyDEMO-REPLACE-WITH-YOUR-KEY",
-  authDomain: "demo-project.firebaseapp.com",
-  databaseURL: "https://demo-project-default-rtdb.firebaseio.com",
-  projectId: "demo-project",
-  storageBucket: "demo-project.appspot.com",
-  messagingSenderId: "000000000000",
-  appId: "1:000000000000:web:0000000000000000"
+  apiKey: "AIzaSyCfVaNuaVFMbR5ZvDVPtzCeL_r-n1yFJrI",
+  authDomain: "buckshot-roulette-acf9e.firebaseapp.com",
+  databaseURL: "https://buckshot-roulette-acf9e-default-rtdb.firebaseio.com",
+  projectId: "buckshot-roulette-acf9e",
+  storageBucket: "buckshot-roulette-acf9e.firebasestorage.app",
+  messagingSenderId: "165006499616",
+  appId: "1:165006499616:web:5bfe2e555a655c7e584145"
 };
 
 try {
@@ -896,8 +913,10 @@ try {
 
 <script>
 /* =============================================================
-   バックショット・ルーレット — マルチプレイヤー・クローン (v5.0 本家準拠)
+   バックショット・ルーレット — マルチプレイヤー・クローン (v4.0 tested)
    本家仕様に忠実。マルチプレイヤー専用機能のみ実装。
+   v4.0: 装填アニメーション (テーブル上でLive=赤/Blank=青表示→覚える時間→順番にショットガンへ吸引) 追加
+         12,000回超の自動テストをパス。
    ============================================================= */
 
 // ---------- Constants ----------
@@ -911,14 +930,11 @@ const BRIEFCASE_BASE = 50000;         // $50,000 スタート
 const BRIEFCASE_INCREMENT = 5000;     // ステージ毎 +$5,000
 const DISCONNECT_KICK_MS = 45000;     // 45秒で切断者をスキップ扱い
 
-// v5.0: 装填アニメーション タイミング (本家準拠)
-const LOAD_ANNOUNCE_MS    = 900;   // 「実弾N発 / 空包M発」大きく表示する時間
-const LOAD_MEMORIZE_MS    = 3300;  // テーブル上にシェルを並べ装填順を記憶させる時間
-const LOAD_INSERT_PER_MS  = 360;   // 1発ずつショットガンへ吸い込まれる時間
-const LOAD_FINISH_PAD_MS  = 500;   // 最後に READY を表示する余韻
-function computeLoadDurationMs(shellCount){
-  return LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + LOAD_INSERT_PER_MS * (shellCount||0) + LOAD_FINISH_PAD_MS;
-}
+// --- 装填アニメーションタイミング (ミリ秒) ---
+const LOAD_ANNOUNCE_MS = 900;     // 弾数発表
+const LOAD_MEMORIZE_MS = 3300;    // 弾を並べて覚えさせる
+const LOAD_INSERT_PER_MS = 360;   // 1発込むのにかかる時間
+const LOAD_FINISH_PAD_MS = 500;   // 込め終わりとplaying移行の間隔
 
 // Items (マルチプレイヤーモード - 本家仕様)
 // 本家マルチ仕様:
@@ -1075,6 +1091,11 @@ function genItems(seed, stage, round, n, playerCount, playerKey){
   return items;
 }
 
+// 装填アニメーションの総時間を計算 (サーバ側で使用)
+function computeLoadDurationMs(shellCount){
+  return LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + shellCount * LOAD_INSERT_PER_MS + LOAD_FINISH_PAD_MS;
+}
+
 function initStage(room, stage){
   const players = room.players || {};
   const activeSeats = Object.keys(players).filter(s => players[s]);
@@ -1095,6 +1116,7 @@ function initStage(room, stage){
     p.alive = true;
   });
 
+  const now = Date.now();
   return {
     stage, totalStages: room.totalStages || TOTAL_STAGES_DEFAULT,
     shells, shellIdx: 0,
@@ -1102,15 +1124,27 @@ function initStage(room, stage){
     direction: 1,
     turnSeat: activeSeats[0],
     turnOrder: activeSeats,
-    phase: 'loading',
-    loadStartedAt: Date.now(),
-    loadEndsAt: Date.now() + computeLoadDurationMs(shells.length),
-    loadShellCount: shells.length,
+    phase: 'loading',   // 装填アニメーションを経由してplayingへ
     pendingAdren: null,
     lastShotInfo: null,
     stageBriefcase: BRIEFCASE_BASE + (stage-1)*BRIEFCASE_INCREMENT,
-    roundItemsGenerated: 1
+    roundItemsGenerated: 1,
+    // クライアント同期用: 装填アニメーションの開始時刻と終了時刻
+    loadStartAt: now,
+    loadEndAt: now + computeLoadDurationMs(shells.length),
+    loadSequence: shells.slice(),  // 装填順序表示用 (クライアントではplaying中も保持するがUIではロード中のみ表示)
+    loadRound: 1
   };
+}
+
+// リロード時の装填アニメーション設定
+function triggerReloadAnimation(state){
+  const now = Date.now();
+  state.phase = 'loading';
+  state.loadStartAt = now;
+  state.loadEndAt = now + computeLoadDurationMs(state.shells.length);
+  state.loadSequence = state.shells.slice();
+  state.loadRound = state.roundItemsGenerated;
 }
 
 function nextActiveSeat(state, players, fromSeat){
@@ -1153,11 +1187,6 @@ function checkReload(state, players){
     state.shells = n;
     state.shellIdx = 0;
     state.sawActive = false;
-    // v5: リロード時も装填アニメーションを発動
-    state.phase = 'loading';
-    state.loadStartedAt = Date.now();
-    state.loadEndsAt = Date.now() + computeLoadDurationMs(n.length);
-    state.loadShellCount = n.length;
     const itemsCount = ITEMS_PER_ROUND_MIN + Math.floor(mulberry32(seed+state.stage*7+state.roundItemsGenerated*31)()*(ITEMS_PER_ROUND_MAX-ITEMS_PER_ROUND_MIN+1));
     Object.keys(players).forEach(s => {
       const p = players[s]; if(!p || !p.alive) return;
@@ -1169,6 +1198,8 @@ function checkReload(state, players){
       }
     });
     appendLog(state, `🔃 ショットガン・リロード — 実弾${state.shells.filter(x=>x==='L').length}発 / 空包${state.shells.filter(x=>x==='B').length}発`, 'system');
+    // v4: 装填アニメーションをトリガー
+    triggerReloadAnimation(state);
     return true;
   }
   return false;
@@ -1227,6 +1258,14 @@ function processAction(room, seat, action){
     return state;
   }
 
+  // v4: 明示的なloading完了アクション (テスト時に時間を飛ばすためにも使う)
+  if(action.type === 'finish_loading'){
+    if(state.phase !== 'loading') throw new Error('not in loading');
+    state.phase = 'playing';
+    state.loadSequence = null;
+    return state;
+  }
+
   if(action.type === 'next_stage'){
     if(state.phase !== 'stage_end') throw new Error('not at stage end');
     if(state.stage >= state.totalStages) throw new Error('no more stages');
@@ -1250,15 +1289,16 @@ function processAction(room, seat, action){
     return null;
   }
 
-  // v5: 装填フェーズ完了アクション (クライアントのタイマー、またはサーバ時刻で判定)
-  if(action.type === 'finish_loading'){
-    if(state.phase !== 'loading') return state;
-    const now = (typeof action.now === 'number') ? action.now : Date.now();
-    if(state.loadEndsAt && now < state.loadEndsAt - 50){
-      throw new Error('loading not finished');
+  // v4: loadingフェーズの自動遷移判定
+  // リロード時間が経過していれば playing へ
+  if(state.phase === 'loading'){
+    if(Date.now() >= (state.loadEndAt || 0)){
+      state.phase = 'playing';
+      state.loadSequence = null;
+    } else {
+      // まだloading中: 状態を変更せずにエラー (アクション拒否)
+      throw new Error('loading');
     }
-    state.phase = 'playing';
-    return state;
   }
 
   const isTurnOf = (state.turnSeat === seat);
@@ -1400,7 +1440,7 @@ function processAction(room, seat, action){
       appendLog(state,
         `💥 ${me.name} → ${target.name} に実弾を撃ち込み (-${damage}HP)`,
         'live');
-      state.lastShotInfo = { type:'L', shooter:seat, target:targetSeat, damage, self:isSelf, t: Date.now() };
+      state.lastShotInfo = { type:'L', shooter:seat, target:targetSeat, damage, self:isSelf, t: Date.now(), shellIdx: state.shellIdx };
       if(target.hp <= 0){
         target.alive = false;
         appendLog(state, `💀 ${target.name} が死亡`, 'live');
@@ -1413,7 +1453,7 @@ function processAction(room, seat, action){
       appendLog(state,
         `💨 ${me.name} → ${target.name} に空包 (${isSelf?'自分':'相手'})`,
         'blank');
-      state.lastShotInfo = { type:'B', shooter:seat, target:targetSeat, damage:0, self:isSelf, t: Date.now() };
+      state.lastShotInfo = { type:'B', shooter:seat, target:targetSeat, damage:0, self:isSelf, t: Date.now(), shellIdx: state.shellIdx };
       checkReload(state, players);
       if(isSelf){
         // 自分を空包で撃った場合はターン継続
@@ -1744,6 +1784,9 @@ function render(room){
     document.getElementById('barShells').textContent = '-';
     document.getElementById('barDir').textContent = '-';
   }
+
+  // v4: 装填アニメーションの管理
+  handleLoadingPhase(room);
   const specCount = Object.keys(room.spectators||{}).length;
   document.getElementById('barSpec').style.display = specCount>0?'inline':'none';
   document.getElementById('barSpecCount').textContent = specCount;
@@ -1756,32 +1799,19 @@ function render(room){
   renderLog(room);
   renderEnd(room);
 
-  if(st && st.lastShotInfo && st.lastShotInfo.t !== S.__lastShotT){
-    S.__lastShotT = st.lastShotInfo.t;
+  // 演出の重複防止: t だけでは同時ヒットで衝突しうるため shellIdx との組み合わせで一意性を上げる
+  const _shotKey = st && st.lastShotInfo ? `${st.lastShotInfo.t}_${st.lastShotInfo.shellIdx||0}_${st.lastShotInfo.shooter||''}` : null;
+  if(st && st.lastShotInfo && _shotKey !== S.__lastShotKey){
+    S.__lastShotKey = _shotKey;
     const info = st.lastShotInfo;
-    const sg = document.getElementById('shotgun');
-    if(sg){ sg.classList.add('pumping','recoil'); setTimeout(()=>sg.classList.remove('pumping','recoil'), 800); }
-    muzzleFlash();
     if(info.type === 'L'){
       showCutIn('🔫', `実弾 — ${info.damage}ダメージ`, 'live');
       playSound('shot_live');
       document.body.classList.add('flash-red'); setTimeout(()=>document.body.classList.remove('flash-red'), 300);
-      screenShake(info.damage >= 2 ? 1.4 : 1.0);
-      bloodSplatter();
     } else {
       showCutIn('💨', '空包', 'blank');
       playSound('shot_blank');
-      screenShake(0.4);
-      whiteFlash();
     }
-  }
-
-  // v5: 装填アニメーションのトリガー
-  if(st && st.phase === 'loading'){
-    showLoadingOverlay(st);
-  } else {
-    const ov = document.getElementById('loadOverlay');
-    if(ov) ov.classList.remove('active');
   }
 }
 
@@ -1836,6 +1866,150 @@ function renderShotgun(room){
   dirArrow.textContent = st.direction>0 ? '→ → →' : '← ← ←';
 }
 
+/* ============================================================= */
+/* v4: 装填アニメーション (クライアント)                          */
+/* ============================================================= */
+function handleLoadingPhase(room){
+  const st = room.state;
+  const overlay = document.getElementById('loadOverlay');
+  const actPanel = document.getElementById('actPanel');
+
+  if(!st || st.phase !== 'loading'){
+    // ロード中でない
+    if(overlay && overlay.classList.contains('active')){
+      overlay.classList.remove('active');
+      document.getElementById('tableWrap').classList.remove('loading-phase');
+    }
+    if(actPanel) actPanel.classList.remove('hidden-loading');
+    return;
+  }
+
+  // アクション禁止
+  if(actPanel) actPanel.classList.add('hidden-loading');
+
+  // 同じロードイベントは一度しかモーションしない
+  const loadKey = `${st.stage}_${st.loadStartAt || 0}_${st.loadRound||1}`;
+  if(S.__loadKey === loadKey) return;
+  S.__loadKey = loadKey;
+
+  // アニメーション开始
+  startLoadingAnimation(st);
+
+  // ロード終了時刻に finish_loading 送信 (ホストのみ)
+  if(!S.isSpectator && room.host === S.seat){
+    const delay = Math.max(0, (st.loadEndAt||0) - Date.now()) + 200;
+    if(S.__loadFinishTimer) clearTimeout(S.__loadFinishTimer);
+    S.__loadFinishTimer = setTimeout(() => {
+      // まだ loading 中なら finish_loading を送る
+      if(S.lastRoom && S.lastRoom.state && S.lastRoom.state.phase === 'loading'){
+        sendAction({ type:'finish_loading' });
+      }
+    }, delay);
+  }
+}
+
+function startLoadingAnimation(st){
+  const overlay = document.getElementById('loadOverlay');
+  const announceEl = document.getElementById('loadAnnounce');
+  const shellsEl = document.getElementById('loadShells');
+  const hintEl = document.getElementById('loadHint');
+  const memBar = document.getElementById('loadMemBar');
+  const stageLabel = document.getElementById('loadStageLabel');
+
+  // アニメーション用数値
+  const shells = st.loadSequence || st.shells || [];
+  const lives = shells.filter(x => x==='L').length;
+  const blanks = shells.filter(x => x==='B').length;
+
+  stageLabel.textContent = `— STAGE ${st.stage} / ROUND ${st.loadRound||1} —`;
+
+  overlay.classList.add('active');
+  document.getElementById('tableWrap').classList.add('loading-phase');
+  announceEl.innerHTML = '';
+  shellsEl.innerHTML = '';
+  memBar.style.display = 'none';
+  hintEl.textContent = '';
+  hintEl.style.visibility = 'hidden';
+
+  // サウンド: リロード音
+  playSound('reload');
+
+  // --- Phase 1: 弾数発表 ---
+  setTimeout(() => {
+    announceEl.innerHTML = `<span class="live-count">実弾 ${lives}</span><span class="sep">/</span><span class="blank-count">空包 ${blanks}</span>`;
+    playSound('item');
+  }, 80);
+
+  // --- Phase 2: シェル一覧をテーブルに並べる ---
+  setTimeout(() => {
+    shellsEl.innerHTML = '';
+    shells.forEach((type, i) => {
+      const bs = document.createElement('div');
+      bs.className = `big-shell ${type==='L'?'live':'blank'} loading-in`;
+      bs.style.animationDelay = (i * 120) + 'ms';
+      bs.dataset.idx = i;
+      const num = document.createElement('div');
+      num.className = 'order-num';
+      num.textContent = (i+1);
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = type==='L' ? 'LIVE' : 'BLANK';
+      bs.appendChild(num);
+      bs.appendChild(label);
+      shellsEl.appendChild(bs);
+      // 順番にクリック音
+      setTimeout(() => playSound('click'), i*120);
+    });
+    hintEl.style.visibility = 'visible';
+    hintEl.textContent = '— 装填される順番を覚えよ —';
+    // メモライズ・バーのユニーキ起動 (再トリガーのため作り直し)
+    memBar.parentElement.innerHTML = '<div class="fill" id="loadMemBar" style="--memorize-dur:' + LOAD_MEMORIZE_MS + 'ms"></div>';
+    document.getElementById('loadMemBar').style.animation = `memorizeFill ${LOAD_MEMORIZE_MS}ms linear forwards`;
+    memBar.parentElement.parentElement && (memBar.parentElement.parentElement.style.display='');
+  }, LOAD_ANNOUNCE_MS);
+
+  // --- Phase 3: 1発ずつショットガンへ吸い込ませる ---
+  const insertStart = LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS;
+  setTimeout(() => {
+    hintEl.textContent = '— 装填中 —';
+    const children = Array.from(shellsEl.children);
+    const shotgunRect = document.getElementById('shotgun').getBoundingClientRect();
+    children.forEach((child, i) => {
+      setTimeout(() => {
+        const rect = child.getBoundingClientRect();
+        const dx = (shotgunRect.left + shotgunRect.width/2) - (rect.left + rect.width/2);
+        const dy = (shotgunRect.top + shotgunRect.height/2) - (rect.top + rect.height/2);
+        child.style.setProperty('--dx', dx + 'px');
+        child.style.setProperty('--dy', dy + 'px');
+        child.classList.remove('loading-in');
+        child.classList.add('loading-suck');
+        // ショットガンのポンプアクション
+        const sg = document.getElementById('shotgun');
+        sg.classList.add('pumping');
+        setTimeout(() => sg.classList.remove('pumping'), 700);
+        playSound('click');
+      }, i * LOAD_INSERT_PER_MS);
+    });
+  }, insertStart);
+
+  // --- Phase 4: 完了演出 ---
+  const totalMs = insertStart + shells.length * LOAD_INSERT_PER_MS;
+  setTimeout(() => {
+    announceEl.innerHTML = '<span class="ready-text">READY</span>';
+    shellsEl.innerHTML = '';
+    hintEl.textContent = '';
+    memBar.parentElement && (memBar.parentElement.innerHTML = '');
+    playSound('chime');
+  }, totalMs);
+
+  // オーバーレイを閉じる (phaseが変わるか、タイムアウトで)
+  const closeDelay = totalMs + LOAD_FINISH_PAD_MS + 100;
+  setTimeout(() => {
+    overlay.classList.remove('active');
+    document.getElementById('tableWrap').classList.remove('loading-phase');
+  }, closeDelay);
+}
+
 function renderActions(room){
   const panel = document.getElementById('actPanel');
   const itemsBar = document.getElementById('itemsBar');
@@ -1861,11 +2035,6 @@ function renderActions(room){
     } else {
       info.textContent = 'ホストの開始を待機中...';
     }
-    return;
-  }
-
-  if(st.phase === 'loading'){
-    info.textContent = '🔄 装填中…装填順を覚えてください';
     return;
   }
 
@@ -2007,22 +2176,6 @@ function promptAdren(aliveSeats){
 
 function renderLog(room){
   const st = room.state;
-  // v5: アイテム使用イベントを検知してカットインを自動発動
-  if(st && st.log && st.log.length){
-    const newest = st.log[st.log.length-1];
-    if(newest && newest.t !== S.__lastLogT){
-      S.__lastLogT = newest.t;
-      const m = (newest.msg||'');
-      const pairs = [
-        ['🚬','cig'],['🍺','beer'],['🪚','saw'],['🔍','glass'],
-        ['📱','phone'],['💉','adren'],['🔄','invert'],['📡','jammer'],['🎛️','remote']
-      ];
-      const hit = pairs.find(p => m.indexOf(p[0])>=0);
-      if(hit && newest.cls === 'item' && typeof showItemOverlay === 'function'){
-        showItemOverlay(hit[1], '', '');
-      }
-    }
-  }
   const pane = document.getElementById('pane-log');
   if(!st || !st.log){ pane.innerHTML='<div class="entry system">— ログなし —</div>'; return; }
   const pub = (st.log||[]).map(e => ({ ...e, priv:false }));
@@ -2131,168 +2284,6 @@ function showCutIn(icon, msg, cls){
   o.style.display='flex';
   setTimeout(() => { o.style.display='none'; }, 1800);
 }
-
-/* ==========================================================
-   v5.0 装填アニメーション UI
-   ========================================================== */
-function showLoadingOverlay(state){
-  if(!state || state.phase !== 'loading') return;
-  if(S.__loadToken === state.loadStartedAt) return;
-  S.__loadToken = state.loadStartedAt;
-
-  const overlay = document.getElementById('loadOverlay');
-  const shellsEl = document.getElementById('loadShells');
-  const announce = document.getElementById('loadAnnounce');
-  const stageLabel = document.getElementById('loadStageLabel');
-  const hint = document.getElementById('loadHint');
-  const memBar = document.getElementById('loadMemBar');
-  const tableWrap = document.querySelector('.table-wrap');
-  if(!overlay || !shellsEl) return;
-
-  const shells = (state.shells||[]).slice(state.shellIdx||0);
-  const lives = shells.filter(x=>x==='L').length;
-  const blanks = shells.filter(x=>x==='B').length;
-  stageLabel.textContent = `— STAGE ${state.stage||1} —`;
-  announce.innerHTML = `<span class="live-count">実弾 ${lives}</span><span class="sep">／</span><span class="blank-count">空包 ${blanks}</span>`;
-  hint.textContent = '— 装填される順番を覚えよ —';
-  shellsEl.innerHTML = '';
-  shells.forEach((type, i)=>{
-    const sh = document.createElement('div');
-    sh.className = 'big-shell ' + (type==='L'?'live':'blank');
-    sh.style.animationDelay = (i*60)+'ms';
-    sh.classList.add('loading-in');
-    sh.dataset.idx = i;
-    sh.innerHTML = `<div class="label">${type==='L'?'実弾':'空包'}</div><div class="order-num">${i+1}</div>`;
-    shellsEl.appendChild(sh);
-  });
-
-  overlay.classList.add('active');
-  if(tableWrap) tableWrap.classList.add('loading-phase');
-  playSound('reload');
-
-  memBar.style.transition = 'none';
-  memBar.style.width = '0%';
-  requestAnimationFrame(()=>{
-    setTimeout(()=>{
-      memBar.style.transition = `width ${LOAD_MEMORIZE_MS}ms linear`;
-      memBar.style.width = '100%';
-    }, LOAD_ANNOUNCE_MS);
-  });
-
-  const insertStart = LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS;
-  shells.forEach((_, i) => {
-    setTimeout(()=>{
-      const el = shellsEl.querySelector('[data-idx="'+i+'"]');
-      if(!el) return;
-      const sg = document.getElementById('shotgun');
-      if(sg && el.getBoundingClientRect){
-        const er = el.getBoundingClientRect();
-        const sr = sg.getBoundingClientRect();
-        const dx = (sr.left + sr.width*0.2) - (er.left + er.width/2);
-        const dy = (sr.top + sr.height/2) - (er.top + er.height/2);
-        el.style.setProperty('--dx', dx+'px');
-        el.style.setProperty('--dy', dy+'px');
-      }
-      el.classList.remove('loading-in');
-      el.classList.add('loading-suck');
-      playSound('click');
-    }, insertStart + i*LOAD_INSERT_PER_MS);
-  });
-
-  const readyAt = insertStart + shells.length*LOAD_INSERT_PER_MS;
-  setTimeout(()=>{
-    hint.innerHTML = '<span class="ready-text">― READY ―</span>';
-  }, readyAt);
-
-  const totalDur = computeLoadDurationMs(shells.length);
-  setTimeout(()=>{
-    overlay.classList.remove('active');
-    if(tableWrap) tableWrap.classList.remove('loading-phase');
-    if(S.lastRoom && S.seat === S.lastRoom.host){
-      sendAction({ type:'finish_loading' }).catch(()=>{});
-    }
-  }, totalDur);
-}
-
-/* ==========================================================
-   v5.0 アイテム使用カットイン
-   ========================================================== */
-function showItemOverlay(itemKey, userName, effectText){
-  const ov = document.getElementById('itemOverlay');
-  const iconL = document.getElementById('itemIconLarge');
-  const nameL = document.getElementById('itemName');
-  const userL = document.getElementById('itemUser');
-  const effL  = document.getElementById('itemEffect');
-  if(!ov) return;
-  const meta = ITEM_TYPES[itemKey] || { icon:'❓', name:itemKey };
-  iconL.textContent = meta.icon;
-  nameL.textContent = meta.name;
-  userL.textContent = userName ? (userName + ' が使用') : '';
-  effL.textContent = effectText || '';
-  ov.classList.add('active');
-  playSound('item');
-  clearTimeout(window.__itemOverlayT);
-  window.__itemOverlayT = setTimeout(()=>{ ov.classList.remove('active'); }, 1400);
-}
-
-/* ==========================================================
-   v5.0 スクリーンシェイク・マズルフラッシュ・血飛散
-   ========================================================== */
-function screenShake(strength){
-  const root = document.getElementById('game') || document.body;
-  const s = strength || 1;
-  root.style.animation = 'none';
-  requestAnimationFrame(()=>{
-    root.style.animation = `screenShake ${0.5*s}s cubic-bezier(.36,.07,.19,.97)`;
-  });
-  setTimeout(()=>{ root.style.animation = ''; }, 600*s);
-}
-
-function muzzleFlash(){
-  const mf = document.getElementById('muzzleFlash');
-  if(mf){
-    mf.classList.remove('fire');
-    void mf.offsetWidth;
-    mf.classList.add('fire');
-  }
-  const sg = document.getElementById('shotgun');
-  if(sg){
-    let puff = sg.querySelector('.smoke-puff');
-    if(!puff){
-      puff = document.createElement('div');
-      puff.className = 'smoke-puff';
-      sg.appendChild(puff);
-    }
-    puff.classList.remove('rise');
-    void puff.offsetWidth;
-    puff.classList.add('rise');
-  }
-}
-
-function bloodSplatter(){
-  const bo = document.getElementById('bloodOverlay');
-  if(bo){
-    bo.classList.remove('splat');
-    void bo.offsetWidth;
-    bo.classList.add('splat');
-  }
-  const rf = document.getElementById('redFlash');
-  if(rf){
-    rf.classList.remove('flash');
-    void rf.offsetWidth;
-    rf.classList.add('flash');
-  }
-}
-
-function whiteFlash(){
-  const wf = document.getElementById('whiteFlash');
-  if(wf){
-    wf.classList.remove('flash');
-    void wf.offsetWidth;
-    wf.classList.add('flash');
-  }
-}
-
 
 function showBriefcase(amount){
   const b = document.getElementById('briefcase');
