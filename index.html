@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="バックショット・ルーレット マルチプレイヤー・クローン。本家2-4人ゲームを忠実に再現。">
 <meta name="theme-color" content="#0b0b0b">
-<title>バックショット・ルーレット — マルチプレイヤー (v6.0)</title>
+<title>バックショット・ルーレット — マルチプレイヤー (v7.0)</title>
 <style>
 /* ========== 本家に寄せたダーク×赤のCRT風スタイル (v4 装填アニメーション強化) ========== */
 :root{
@@ -936,7 +936,7 @@ body.spectating .action-panel{display:none}
           <div class="chambered-shell" id="chamberedShell"></div>
         </div>
         <div class="shell-indicator" id="shells"></div>
-        <div class="chamber-info" id="chamberInfo"></div>
+        <div class="chamber-info" id="chamberInfo" style="display:none"></div>
       </div>
 
       <!-- 装填アニメーション -->
@@ -1059,7 +1059,7 @@ const DISCONNECT_KICK_MS = 45000;     // 45秒で切断者をスキップ扱い
 const LOAD_ANNOUNCE_MS = 900;     // 弾数発表
 const LOAD_MEMORIZE_MS = 3300;    // 弾を並べて覚えさせる
 const LOAD_INSERT_PER_MS_UNUSED = 360;
-const LOAD_INSERT_PER_MS = 0;   // 1発込むのにかかる時間
+const LOAD_INSERT_PER_MS = 280;  // v7: 1発込むのにかかる時間 (吸い込みアニメ)
 const LOAD_FINISH_PAD_MS = 500;   // 込め終わりとplaying移行の間隔
 
 // Items (マルチプレイヤーモード - 本家仕様)
@@ -1218,7 +1218,7 @@ function genItems(seed, stage, round, n, playerCount, playerKey){
 }
 
 // 装填アニメーションの総時間を計算 (サーバ側で使用)
-function computeLoadDurationMs(_shellCount){ return LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + LOAD_FINISH_PAD_MS; }
+function computeLoadDurationMs(shellCount){ return LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + (shellCount||0)*LOAD_INSERT_PER_MS + LOAD_FINISH_PAD_MS; }
 
 function initStage(room, stage){
   const players = room.players || {};
@@ -1469,6 +1469,8 @@ function processAction(room, seat, action){
         // v6: 使用者本人にのみ結果を通知
         state.privateResult = state.privateResult || {};
         state.privateResult[seat] = { t: Date.now(), item:'beer', kind: cur==='L'?'live':'blank', main: cur==='L'?'実弾':'空包', title:'排出された弾', sub:'ビールで弾を排出しました' };
+        // v7: 全プレイヤーに薬莢の色を配信 (色のみ、中身はpubで隠す)
+        state.lastBeerEject = { t: Date.now(), type: cur, shooter: seat };
         checkReload(state, players);
         break;
       }
@@ -1932,11 +1934,11 @@ function render(room){
   const st = room.state;
   if(st){
     document.getElementById('barStage').textContent = `${st.stage}/${st.totalStages}`;
-    document.getElementById('barShells').textContent = (st.shells ? (st.shells.length - st.shellIdx) : 0);
+    /* v7: barShells 削除済み、何もしない */
     document.getElementById('barDir').textContent = st.direction > 0 ? '→' : '←';
   } else {
     document.getElementById('barStage').textContent = '-';
-    document.getElementById('barShells').textContent = '-';
+    /* v7: barShells 削除済み */
     document.getElementById('barDir').textContent = '-';
   }
 
@@ -1989,12 +1991,16 @@ function renderPlayers(room){
     (p.items||[]).forEach(it => { itemsHtml += `<div class="itembox" title="${ITEM_TYPES[it].name}">${ITEM_TYPES[it].icon}</div>`; });
     const cuff = (p.cuffed && p.cuffed>0) ? `<div class="cuffs" title="拘束中 (${p.cuffed})">⛓️</div>` : '';
     const status = !p.alive ? `<div class="status">💀 脱落</div>` : '';
+    // v7: 待機中でも名前・HP・アイテムがハッキリ見えるように
+    const hpDisplay = (maxHp>0) ? hp : '<span class="hint" style="color:#777;font-size:11px">待機中</span>';
+    const itemsDisplay = itemsHtml || '<span class="hint" style="color:#666;font-size:11px">— アイテムなし —</span>';
+    const cashDisplay = (p.cash||0) > 0 ? ('💰 $' + (p.cash||0).toLocaleString()) : '';
     div.innerHTML = `
       ${status}${cuff}
-      <div class="name">${esc(p.name)} ${seat===room.host?'👑':''}</div>
-      <div class="hp">${hp||'<span style="color:#555">—</span>'}</div>
-      <div class="items">${itemsHtml||'<span style="color:#444;font-size:11px">アイテムなし</span>'}</div>
-      <div class="hint" style="margin-top:6px">💰 $${(p.cash||0).toLocaleString()} • ${seat}</div>
+      <div class="name">${esc(p.name || ('Player '+seat))} ${seat===room.host?'👑':''}</div>
+      <div class="hp">${hpDisplay}</div>
+      <div class="items">${itemsDisplay}</div>
+      <div class="hint" style="margin-top:6px;font-size:11px;color:#888">${cashDisplay} ${cashDisplay?'•':''} ${seat}</div>
     `;
     cont.appendChild(div);
   });
@@ -2006,7 +2012,7 @@ function renderShotgun(room){
   shotgun.className = 'shotgun' + (st && st.sawActive?' sawed':'');
   const shellsEl = document.getElementById('shells');
   shellsEl.innerHTML = '';
-  if(!st || !st.shells){ document.getElementById('chamberInfo').textContent = ''; return; }
+  if(!st || !st.shells){ return; }
   const total = st.shells.length;
   const remaining = total - st.shellIdx;
   for(let i=0;i<remaining;i++){
@@ -2016,7 +2022,7 @@ function renderShotgun(room){
   }
   const lives = st.shells.slice(st.shellIdx).filter(x=>x==='L').length;
   const blanks = remaining - lives;
-  document.getElementById('chamberInfo').innerHTML = `<span class="live">実弾 ${lives}</span> &nbsp;/&nbsp; <span class="blank">空包 ${blanks}</span>${st.sawActive?' &nbsp;⚠️ 銃身切断済':''}`;
+  /* v7: chamberInfo テキスト削除 */
   const dirArrow = document.getElementById('dirArrow');
   dirArrow.textContent = st.direction>0 ? '→ → →' : '← ← ←';
 }
@@ -2064,7 +2070,7 @@ function handleLoadingPhase(room){
 }
 
 function startLoadingAnimation(st){
-  // v6: 装填モーションは不要。実弾/空包の数だけ大きく表示し、少し間を置いて閉じる
+  // v7: 吸い込みアニメ復活 + ソート順でシェル表示 (LLLBBのような塊)
   const overlay = document.getElementById('loadOverlay');
   const announceEl = document.getElementById('loadAnnounce');
   const shellsEl = document.getElementById('loadShells');
@@ -2081,24 +2087,21 @@ function startLoadingAnimation(st){
   overlay.classList.add('active');
   if(tw) tw.classList.add('loading-phase');
 
-  // 弾数発表
-  announceEl.innerHTML = '<span class="live-count">実弾 ' + lives + '</span><span class="sep">／</span><span class="blank-count">空包 ' + blanks + '</span>';
-  hintEl.textContent = '— 装填される実弾と空包の数を確認 —';
+  announceEl.innerHTML = '';
+  hintEl.textContent = '— シェルの内訳を記憶せよ —';
   hintEl.style.visibility = 'visible';
 
-  // シェル数の内訳だけを並べる(実順序は見せずランダム配置)
+  // v7: ソート順で並べる (実弾→空包)
   const visual = [];
-  for(let i=0;i<lives;i++) visual.push('L');
-  for(let i=0;i<blanks;i++) visual.push('B');
-  for(let i=visual.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    const t = visual[i]; visual[i]=visual[j]; visual[j]=t;
-  }
+  for(var a=0;a<lives;a++) visual.push('L');
+  for(var b=0;b<blanks;b++) visual.push('B');
+
   shellsEl.innerHTML = '';
   visual.forEach(function(type, i){
     const bs = document.createElement('div');
     bs.className = 'big-shell ' + (type==='L'?'live':'blank') + ' loading-in';
-    bs.style.animationDelay = (i * 80) + 'ms';
+    bs.style.animationDelay = (i * 90) + 'ms';
+    bs.dataset.idx = i;
     const label = document.createElement('div');
     label.className = 'label';
     label.textContent = type==='L' ? '実弾' : '空包';
@@ -2110,28 +2113,53 @@ function startLoadingAnimation(st){
   // メモライズバー進行
   if(memBar && memBar.parentElement){
     memBar.parentElement.innerHTML = '<div class="fill" id="loadMemBar"></div>';
-    const b = document.getElementById('loadMemBar');
-    b.style.transition = 'none';
-    b.style.width = '0%';
+    const fill = document.getElementById('loadMemBar');
+    fill.style.transition = 'none';
+    fill.style.width = '0%';
     requestAnimationFrame(function(){
       setTimeout(function(){
-        b.style.transition = 'width ' + LOAD_MEMORIZE_MS + 'ms linear';
-        b.style.width = '100%';
+        fill.style.transition = 'width ' + LOAD_MEMORIZE_MS + 'ms linear';
+        fill.style.width = '100%';
       }, 50);
     });
   }
 
-  // 閉じる (本家準拠の短め演出)
-  const totalDur = LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + LOAD_FINISH_PAD_MS;
+  // v7: Phase 3 - 1発ずつショットガンへ吸い込み (順にアニメーション)
+  const insertStart = LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS;
+  setTimeout(function(){
+    hintEl.textContent = '— 装填中 —';
+    const sg = document.getElementById('shotgun');
+    const sgRect = sg ? sg.getBoundingClientRect() : { left:0,top:0,width:0,height:0 };
+    const children = Array.from(shellsEl.children);
+    children.forEach(function(child, i){
+      setTimeout(function(){
+        if(child && child.getBoundingClientRect){
+          const r = child.getBoundingClientRect();
+          const dx = (sgRect.left + sgRect.width*0.25) - (r.left + r.width/2);
+          const dy = (sgRect.top + sgRect.height/2) - (r.top + r.height/2);
+          child.style.setProperty('--dx', dx + 'px');
+          child.style.setProperty('--dy', dy + 'px');
+          child.classList.remove('loading-in');
+          child.classList.add('loading-suck');
+        }
+        if(sg){ sg.classList.add('pumping'); setTimeout(function(){ sg.classList.remove('pumping'); }, 680); }
+        playSound('click');
+      }, i * LOAD_INSERT_PER_MS);
+    });
+  }, insertStart);
+
+  // Phase 4: READY
+  const totalMs = insertStart + visual.length * LOAD_INSERT_PER_MS;
   setTimeout(function(){
     hintEl.innerHTML = '<span class="ready-text">― READY ―</span>';
     playSound('chime');
-  }, LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS);
+  }, totalMs);
   setTimeout(function(){
     overlay.classList.remove('active');
     if(tw) tw.classList.remove('loading-phase');
-  }, totalDur);
+  }, totalMs + LOAD_FINISH_PAD_MS);
 }
+
 
 
 function renderActions(room){
@@ -2329,6 +2357,13 @@ function renderLog(room){
           showItemNotify(userName, hit[1]);
         }
       }
+    }
+  }
+  // v7: lastBeerEject (全員に薬莢色を配信) を検知して ejectCasing
+  if(st && st.lastBeerEject && st.lastBeerEject.t !== S.__lastBeerT){
+    S.__lastBeerT = st.lastBeerEject.t;
+    if(typeof ejectCasing === 'function'){
+      ejectCasing(st.lastBeerEject.type, 'beer');
     }
   }
   // v6: privateResult (使用者本人のみ見える結果) を検知してカットイン
