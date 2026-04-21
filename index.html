@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="description" content="バックショット・ルーレット マルチプレイヤー・クローン。本家2-4人ゲームを忠実に再現。">
 <meta name="theme-color" content="#0b0b0b">
-<title>バックショット・ルーレット — マルチプレイヤー</title>
+<title>バックショット・ルーレット — マルチプレイヤー (v6.0)</title>
 <style>
 /* ========== 本家に寄せたダーク×赤のCRT風スタイル (v4 装填アニメーション強化) ========== */
 :root{
@@ -710,6 +710,112 @@ body.spectating .action-panel{display:none}
 /* 色づけの固有名色 */
 .col-live{ color:var(--live) }
 .col-blank{ color:var(--blank) }
+
+/* ============================================================= */
+/* v6.0 薬莢排出アニメ(発射時/ビール)                              */
+/* ============================================================= */
+.ejected-casing{
+  position:fixed;pointer-events:none;z-index:195;
+  width:30px;height:68px;border-radius:5px 5px 3px 3px;
+  box-shadow:0 4px 12px rgba(0,0,0,.6),inset 0 -6px 10px rgba(0,0,0,.4);
+  font-family:'Courier New',monospace;
+}
+.ejected-casing::before{
+  content:"";position:absolute;top:-2px;left:2px;right:2px;height:10px;
+  border-radius:4px 4px 0 0;background:#2a2a2a;
+}
+.ejected-casing::after{
+  content:"";position:absolute;bottom:0;left:0;right:0;height:20px;
+  background:#c9aa62;border-radius:0 0 4px 4px;box-shadow:inset 0 2px 3px rgba(0,0,0,.5);
+}
+.ejected-casing.live{
+  background:linear-gradient(180deg,#c42020 0%,#8a1010 80%,#660808 100%);
+  border:1px solid #ff6666;
+}
+.ejected-casing.blank{
+  background:linear-gradient(180deg,#3a7edb 0%,#2560aa 80%,#1a4080 100%);
+  border:1px solid #6caaff;
+}
+.ejected-casing.shoot-eject{ animation:casingShootEject 1.1s cubic-bezier(.3,.7,.6,1) forwards; }
+@keyframes casingShootEject{
+  0%{ transform:translate(0,0) rotate(0); opacity:0 }
+  10%{ opacity:1 }
+  40%{ transform:translate(90px,-70px) rotate(140deg) }
+  80%{ transform:translate(140px,40px) rotate(280deg); opacity:.9 }
+  100%{ transform:translate(160px,160px) rotate(380deg); opacity:0 }
+}
+.ejected-casing.beer-eject{ animation:casingBeerEject 1.3s cubic-bezier(.2,.6,.5,1) forwards; }
+@keyframes casingBeerEject{
+  0%{ transform:translate(0,0) rotate(0) scale(.5); opacity:0 }
+  15%{ opacity:1; transform:translate(-20px,0) rotate(-10deg) scale(1) }
+  45%{ transform:translate(-80px,-30px) rotate(-40deg) scale(1) }
+  80%{ transform:translate(-140px,30px) rotate(-90deg) scale(1); opacity:.8 }
+  100%{ transform:translate(-180px,140px) rotate(-150deg) scale(1); opacity:0 }
+}
+
+/* ============================================================= */
+/* v6.0 アイテム結果カットイン (使用者本人のみ)                    */
+/* ============================================================= */
+#itemResultOverlay{
+  position:fixed;inset:0;display:none;pointer-events:none;z-index:210;
+  align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at center, rgba(20,10,15,.82) 0%, rgba(0,0,0,.6) 70%);
+  backdrop-filter:blur(4px);
+}
+#itemResultOverlay.active{ display:flex; animation:resultOvAnim 2.2s ease-out forwards; }
+@keyframes resultOvAnim{
+  0%{ opacity:0 } 8%{ opacity:1 } 88%{ opacity:1 } 100%{ opacity:0 }
+}
+#itemResultOverlay .stage{
+  text-align:center; transform:scale(.5);
+  animation:resultStageIn .5s cubic-bezier(.2,1.6,.4,1) forwards;
+}
+@keyframes resultStageIn{ to{ transform:scale(1) } }
+#itemResultOverlay .ic{
+  font-size:130px;margin-bottom:18px;
+  filter:drop-shadow(0 0 24px rgba(255,200,80,.7));
+}
+#itemResultOverlay .title{
+  font-family:'Courier New',monospace;font-size:22px;font-weight:900;
+  color:#c8b090;letter-spacing:.25em;margin-bottom:16px;
+}
+#itemResultOverlay .main{
+  font-family:'Courier New',monospace;font-size:62px;font-weight:900;
+  letter-spacing:.08em;line-height:1.15;padding:24px 40px;
+  border:3px solid rgba(220,180,120,.5);border-radius:12px;
+  background:rgba(12,8,8,.7);
+  box-shadow:0 14px 50px rgba(0,0,0,.8), inset 0 0 40px rgba(255,180,100,.1);
+}
+#itemResultOverlay .main.live{ color:#ff5555;text-shadow:0 0 26px rgba(215,32,32,.9); border-color:rgba(255,80,80,.6); }
+#itemResultOverlay .main.blank{ color:#6aa8ff;text-shadow:0 0 26px rgba(42,111,219,.9); border-color:rgba(90,150,255,.6); }
+#itemResultOverlay .main.neutral{ color:#ffd870;text-shadow:0 0 26px rgba(255,200,80,.7); }
+#itemResultOverlay .sub{
+  margin-top:14px;font-family:'Courier New',monospace;color:#a89880;font-size:14px;letter-spacing:.15em;
+}
+
+/* ============================================================= */
+/* v6.0 他プレイヤー向けミニ通知 (誰が何を使ったか、結果なし)       */
+/* ============================================================= */
+#itemNotify{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%);
+  display:none;pointer-events:none;z-index:188;
+  font-family:'Courier New',monospace;
+  padding:12px 28px;background:rgba(18,10,12,.92);
+  border:1px solid rgba(220,180,120,.4);border-radius:8px;
+  box-shadow:0 6px 24px rgba(0,0,0,.7);
+  color:#e8dcc0;font-size:16px;letter-spacing:.1em;
+}
+#itemNotify .ni-icon{ font-size:24px;margin-right:8px;vertical-align:middle; }
+#itemNotify .ni-user{ color:#ffd870;font-weight:700; }
+#itemNotify .ni-item{ color:#c8b090; }
+#itemNotify.show{ display:block; animation:notifyFade 2.2s ease-out forwards; }
+@keyframes notifyFade{
+  0%{ opacity:0; transform:translateX(-50%) translateY(-20px) }
+  12%{ opacity:1; transform:translateX(-50%) translateY(0) }
+  82%{ opacity:1 }
+  100%{ opacity:0; transform:translateX(-50%) translateY(-10px) }
+}
+
 </style>
 </head>
 <body>
@@ -810,7 +916,6 @@ body.spectating .action-panel{display:none}
     <div class="toolbar">
       <span class="stat">ルーム <span class="roomid" id="barRoom">------</span></span>
       <span class="stat">ステージ <b id="barStage">1/3</b></span>
-      <span class="stat">残弾 <b id="barShells">0</b></span>
       <span class="stat">方向 <b id="barDir">→</b></span>
       <span class="stat" id="barSpec" style="display:none">観戦 <b id="barSpecCount">0</b></span>
       <span class="spacer"></span>
@@ -853,12 +958,12 @@ body.spectating .action-panel{display:none}
       <div id="actInfo" class="hint" style="text-align:center;margin-top:8px"></div>
     </div>
 
-    <div class="tabs">
+    <div class="tabs" style="display:none">
       <button class="active" onclick="switchTab('log')">📜 ログ</button>
       <button onclick="switchTab('rules')">📖 ルール</button>
     </div>
-    <div id="pane-log" class="pane active log-panel" style="max-height:260px"></div>
-    <div id="pane-rules" class="pane">
+    <div id="pane-log" class="pane log-panel" style="display:none;max-height:260px"></div>
+    <div id="pane-rules" class="pane active" style="display:block">
       <h3>クイック・リファレンス</h3>
       <ul>
         <li>自分のターン: アイテム使用 → 自分または相手を撃つ(自分を空包で撃つとターン継続)。</li>
@@ -881,6 +986,20 @@ body.spectating .action-panel{display:none}
 <div id="overlay"><div class="cutin"><div class="icon"></div><div class="msg"></div></div></div>
 <div id="briefcase"><div class="case"><div class="money">$50,000</div><div class="label">ブリーフケース獲得!</div></div></div>
 <div id="toast"></div>
+
+<!-- v6: アイテム使用 結果カットイン (使用者のみ) -->
+<div id="itemResultOverlay">
+  <div class="stage">
+    <div class="ic" id="itemResultIcon">🔍</div>
+    <div class="title" id="itemResultTitle">ITEM USED</div>
+    <div class="main neutral" id="itemResultMain">RESULT</div>
+    <div class="sub" id="itemResultSub"></div>
+  </div>
+</div>
+
+<!-- v6: 他プレイヤー向けミニ通知 -->
+<div id="itemNotify"></div>
+
 
 <!-- Firebase -->
 <script type="module">
@@ -924,7 +1043,13 @@ const MAX_SPECTATORS = 20;
 const MAX_INV = 8;                    // 各プレイヤーの最大所持アイテム
 const SHELL_MIN = 2, SHELL_MAX = 8;
 const CHARGE_MIN = 2, CHARGE_MAX = 4;
-const ITEMS_PER_ROUND_MIN = 2, ITEMS_PER_ROUND_MAX = 5; // 本家: 2〜5個/ラウンド
+const ITEMS_PER_ROUND_MIN = 2, ITEMS_PER_ROUND_MAX = 4; // 本家: 2〜4個/ラウンド
+// ステージ別アイテム配布量 (本家準拠: S1=2, S2=4, S3=4)
+function itemsPerStage(stage){
+  if(stage <= 1) return 2;
+  if(stage === 2) return 4;
+  return 4;
+}
 const TOTAL_STAGES_DEFAULT = 3;
 const BRIEFCASE_BASE = 50000;         // $50,000 スタート
 const BRIEFCASE_INCREMENT = 5000;     // ステージ毎 +$5,000
@@ -933,7 +1058,8 @@ const DISCONNECT_KICK_MS = 45000;     // 45秒で切断者をスキップ扱い
 // --- 装填アニメーションタイミング (ミリ秒) ---
 const LOAD_ANNOUNCE_MS = 900;     // 弾数発表
 const LOAD_MEMORIZE_MS = 3300;    // 弾を並べて覚えさせる
-const LOAD_INSERT_PER_MS = 360;   // 1発込むのにかかる時間
+const LOAD_INSERT_PER_MS_UNUSED = 360;
+const LOAD_INSERT_PER_MS = 0;   // 1発込むのにかかる時間
 const LOAD_FINISH_PAD_MS = 500;   // 込め終わりとplaying移行の間隔
 
 // Items (マルチプレイヤーモード - 本家仕様)
@@ -1092,9 +1218,7 @@ function genItems(seed, stage, round, n, playerCount, playerKey){
 }
 
 // 装填アニメーションの総時間を計算 (サーバ側で使用)
-function computeLoadDurationMs(shellCount){
-  return LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + shellCount * LOAD_INSERT_PER_MS + LOAD_FINISH_PAD_MS;
-}
+function computeLoadDurationMs(_shellCount){ return LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + LOAD_FINISH_PAD_MS; }
 
 function initStage(room, stage){
   const players = room.players || {};
@@ -1105,7 +1229,7 @@ function initStage(room, stage){
   const charges = CHARGE_MIN + Math.floor(chargeRng()*(CHARGE_MAX-CHARGE_MIN+1));
   const shells = buildShotgun(seed, stage);
   // 本家: 2〜5個/ラウンド
-  const itemsCount = ITEMS_PER_ROUND_MIN + Math.floor(mulberry32(seed+stage*7)()*( ITEMS_PER_ROUND_MAX-ITEMS_PER_ROUND_MIN+1));
+  const itemsCount = itemsPerStage(stage);
 
   activeSeats.forEach((s) => {
     const p = players[s];
@@ -1187,7 +1311,7 @@ function checkReload(state, players){
     state.shells = n;
     state.shellIdx = 0;
     state.sawActive = false;
-    const itemsCount = ITEMS_PER_ROUND_MIN + Math.floor(mulberry32(seed+state.stage*7+state.roundItemsGenerated*31)()*(ITEMS_PER_ROUND_MAX-ITEMS_PER_ROUND_MIN+1));
+    const itemsCount = itemsPerStage(state.stage);
     Object.keys(players).forEach(s => {
       const p = players[s]; if(!p || !p.alive) return;
       const fresh = genItems(seed, state.stage, state.roundItemsGenerated, itemsCount, playerCount, s);
@@ -1261,6 +1385,11 @@ function processAction(room, seat, action){
   // v4: 明示的なloading完了アクション (テスト時に時間を飛ばすためにも使う)
   if(action.type === 'finish_loading'){
     if(state.phase !== 'loading') throw new Error('not in loading');
+    // v6: loadEndsAt に移行時刻ガード (テスト時は action.now で上書き可能)
+    const now = (typeof action.now === 'number') ? action.now : Date.now();
+    if(state.loadEndAt && now < state.loadEndAt - 50){
+      throw new Error('loading not finished');
+    }
     state.phase = 'playing';
     state.loadSequence = null;
     return state;
@@ -1316,8 +1445,15 @@ function processAction(room, seat, action){
 
     switch(item){
       case 'cig':{
-        if(me.hp < me.maxHp){ me.hp += 1; appendLog(state, `🚬 ${me.name} は煙草で1HP回復`, 'item'); }
-        else appendLog(state, `🚬 ${me.name} は煙草を吸ったが満タン`, 'item');
+        state.privateResult = state.privateResult || {};
+        if(me.hp < me.maxHp){
+          me.hp += 1;
+          appendLog(state, `🚬 ${me.name} は煙草で1HP回復`, 'item');
+          state.privateResult[seat] = { t: Date.now(), item:'cig', kind:'neutral', main:'+1 HP', title:'煙草', sub:'体力が回復しました' };
+        } else {
+          appendLog(state, `🚬 ${me.name} は煙草を吸ったが満タン`, 'item');
+          state.privateResult[seat] = { t: Date.now(), item:'cig', kind:'neutral', main:'HP 最大', title:'煙草', sub:'これ以上回復できません' };
+        }
         break;
       }
       case 'beer':{
@@ -1329,13 +1465,18 @@ function processAction(room, seat, action){
         }
         const cur = state.shells[state.shellIdx];
         state.shellIdx += 1;
-        appendLog(state, `🍺 ${me.name} はビールを使用 — 弾を排出 (${cur==='L'?'実弾':'空包'})`, cur==='L'?'live':'blank');
+        appendLog(state, `🍺 ${me.name} はビールを使用 — 弾を排出`, 'item');
+        // v6: 使用者本人にのみ結果を通知
+        state.privateResult = state.privateResult || {};
+        state.privateResult[seat] = { t: Date.now(), item:'beer', kind: cur==='L'?'live':'blank', main: cur==='L'?'実弾':'空包', title:'排出された弾', sub:'ビールで弾を排出しました' };
         checkReload(state, players);
         break;
       }
       case 'saw':{
         state.sawActive = true;
         appendLog(state, `🪚 ${me.name} は銃身を切り詰めた(次弾2ダメージ)`, 'item');
+        state.privateResult = state.privateResult || {};
+        state.privateResult[seat] = { t: Date.now(), item:'saw', kind:'neutral', main:'×2 ダメージ', title:'ハンドソー', sub:'次の発砲のみ2ダメージ' };
         break;
       }
       case 'glass':{
@@ -1343,6 +1484,9 @@ function processAction(room, seat, action){
         state.privateLog = state.privateLog || {};
         state.privateLog[seat] = state.privateLog[seat] || [];
         state.privateLog[seat].push({ t: Date.now(), msg: `🔍 観察: 現在の弾は ${cur==='L'?'実弾':'空包'}`, cls: cur==='L'?'live':'blank' });
+        // v6: 使用者本人にのみ結果を大表示
+        state.privateResult = state.privateResult || {};
+        state.privateResult[seat] = { t: Date.now(), item:'glass', kind: cur==='L'?'live':'blank', main: cur==='L'?'実弾':'空包', title:'現在の弾は', sub:'虫眼鏡で確認しました' };
         appendLog(state, `🔍 ${me.name} は虫眼鏡で弾を確認した`, 'item');
         break;
       }
@@ -1357,6 +1501,8 @@ function processAction(room, seat, action){
         }
         tgt.cuffed = 1;
         appendLog(state, `📡 ジャマー ${me.name} → ${tgt.name} の次ターンをスキップ`, 'item');
+        state.privateResult = state.privateResult || {};
+        state.privateResult[seat] = { t: Date.now(), item:'jammer', kind:'neutral', main:tgt.name, title:'拘束した相手', sub:'次ターンをスキップさせます' };
         break;
       }
       case 'phone':{
@@ -1364,8 +1510,10 @@ function processAction(room, seat, action){
         const remaining = state.shells.length - state.shellIdx;
         state.privateLog = state.privateLog || {};
         state.privateLog[seat] = state.privateLog[seat] || [];
+        state.privateResult = state.privateResult || {};
         if(remaining < 3){
           state.privateLog[seat].push({ t: Date.now(), msg: `📱 携帯: "HOW UNFORTUNATE" — 情報なし (残弾${remaining}発)`, cls: 'system' });
+          state.privateResult[seat] = { t: Date.now(), item:'phone', kind:'neutral', main:'HOW UNFORTUNATE', title:'携帯の結果', sub:'情報なし' };
         } else {
           const rng = mulberry32((room.seed||1)+state.shellIdx*991+state.roundItemsGenerated*17+seat.charCodeAt(0));
           const pickIdx = state.shellIdx + 1 + Math.floor(rng() * (remaining - 1));
@@ -1373,6 +1521,7 @@ function processAction(room, seat, action){
           const type = state.shells[pickIdx];
           const ordName = ['','1番目','2番目','3番目','4番目','5番目','6番目','7番目','8番目'][ord] || (ord+'番目');
           state.privateLog[seat].push({ t: Date.now(), msg: `📱 携帯: "${ordName}の弾は ${type==='L'?'実弾':'空包'}"`, cls: type==='L'?'live':'blank' });
+          state.privateResult[seat] = { t: Date.now(), item:'phone', kind: type==='L'?'live':'blank', main: `${ordName} → ${type==='L'?'実弾':'空包'}`, title:'携帯の結果', sub:'未来の弾を盗み聞き' };
         }
         appendLog(state, `📱 ${me.name} は携帯でランダムな弾を盗み聞きした`, 'item');
         break;
@@ -1383,8 +1532,11 @@ function processAction(room, seat, action){
           appendLog(state, `🔄 ${me.name} はインバーターを使ったが薬室は空`, 'system');
           break;
         }
-        state.shells[state.shellIdx] = state.shells[state.shellIdx]==='L' ? 'B' : 'L';
+        const newType = state.shells[state.shellIdx]==='L' ? 'B' : 'L';
+        state.shells[state.shellIdx] = newType;
         appendLog(state, `🔄 ${me.name} はインバーターで弾を反転`, 'item');
+        state.privateResult = state.privateResult || {};
+        state.privateResult[seat] = { t: Date.now(), item:'invert', kind: newType==='L'?'live':'blank', main:'→ '+(newType==='L'?'実弾':'空包'), title:'反転後の弾', sub:'インバーターで弾を反転' };
         break;
       }
       case 'adren':{
@@ -1411,11 +1563,14 @@ function processAction(room, seat, action){
       }
       case 'remote':{
         const activeCount = Object.values(players).filter(p=>p&&p.alive).length;
+        state.privateResult = state.privateResult || {};
         if(activeCount < 3){
           appendLog(state, `🎛️ ${me.name} はリモコンを使ったが2人戦なので無効`, 'system');
+          state.privateResult[seat] = { t: Date.now(), item:'remote', kind:'neutral', main:'無効', title:'リモコン', sub:'2人戦では無効です' };
         } else {
           state.direction = -state.direction;
           appendLog(state, `🎛️ ${me.name} はリモコンで順番を逆転 (${state.direction>0?'→':'←'})`, 'item');
+          state.privateResult[seat] = { t: Date.now(), item:'remote', kind:'neutral', main: state.direction>0?'→ 順方向':'← 逆方向', title:'ターン方向', sub:'リモコンで順番を逆転' };
         }
         break;
       }
@@ -1909,106 +2064,75 @@ function handleLoadingPhase(room){
 }
 
 function startLoadingAnimation(st){
+  // v6: 装填モーションは不要。実弾/空包の数だけ大きく表示し、少し間を置いて閉じる
   const overlay = document.getElementById('loadOverlay');
   const announceEl = document.getElementById('loadAnnounce');
   const shellsEl = document.getElementById('loadShells');
   const hintEl = document.getElementById('loadHint');
   const memBar = document.getElementById('loadMemBar');
   const stageLabel = document.getElementById('loadStageLabel');
+  const tw = document.getElementById('tableWrap');
 
-  // アニメーション用数値
   const shells = st.loadSequence || st.shells || [];
-  const lives = shells.filter(x => x==='L').length;
-  const blanks = shells.filter(x => x==='B').length;
+  const lives = shells.filter(function(x){ return x==='L'; }).length;
+  const blanks = shells.filter(function(x){ return x==='B'; }).length;
 
-  stageLabel.textContent = `— STAGE ${st.stage} / ROUND ${st.loadRound||1} —`;
-
+  stageLabel.textContent = '— STAGE ' + st.stage + ' —';
   overlay.classList.add('active');
-  document.getElementById('tableWrap').classList.add('loading-phase');
-  announceEl.innerHTML = '';
-  shellsEl.innerHTML = '';
-  memBar.style.display = 'none';
-  hintEl.textContent = '';
-  hintEl.style.visibility = 'hidden';
+  if(tw) tw.classList.add('loading-phase');
 
-  // サウンド: リロード音
+  // 弾数発表
+  announceEl.innerHTML = '<span class="live-count">実弾 ' + lives + '</span><span class="sep">／</span><span class="blank-count">空包 ' + blanks + '</span>';
+  hintEl.textContent = '— 装填される実弾と空包の数を確認 —';
+  hintEl.style.visibility = 'visible';
+
+  // シェル数の内訳だけを並べる(実順序は見せずランダム配置)
+  const visual = [];
+  for(let i=0;i<lives;i++) visual.push('L');
+  for(let i=0;i<blanks;i++) visual.push('B');
+  for(let i=visual.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    const t = visual[i]; visual[i]=visual[j]; visual[j]=t;
+  }
+  shellsEl.innerHTML = '';
+  visual.forEach(function(type, i){
+    const bs = document.createElement('div');
+    bs.className = 'big-shell ' + (type==='L'?'live':'blank') + ' loading-in';
+    bs.style.animationDelay = (i * 80) + 'ms';
+    const label = document.createElement('div');
+    label.className = 'label';
+    label.textContent = type==='L' ? '実弾' : '空包';
+    bs.appendChild(label);
+    shellsEl.appendChild(bs);
+  });
   playSound('reload');
 
-  // --- Phase 1: 弾数発表 ---
-  setTimeout(() => {
-    announceEl.innerHTML = `<span class="live-count">実弾 ${lives}</span><span class="sep">/</span><span class="blank-count">空包 ${blanks}</span>`;
-    playSound('item');
-  }, 80);
-
-  // --- Phase 2: シェル一覧をテーブルに並べる ---
-  setTimeout(() => {
-    shellsEl.innerHTML = '';
-    shells.forEach((type, i) => {
-      const bs = document.createElement('div');
-      bs.className = `big-shell ${type==='L'?'live':'blank'} loading-in`;
-      bs.style.animationDelay = (i * 120) + 'ms';
-      bs.dataset.idx = i;
-      const num = document.createElement('div');
-      num.className = 'order-num';
-      num.textContent = (i+1);
-      const label = document.createElement('div');
-      label.className = 'label';
-      label.textContent = type==='L' ? 'LIVE' : 'BLANK';
-      bs.appendChild(num);
-      bs.appendChild(label);
-      shellsEl.appendChild(bs);
-      // 順番にクリック音
-      setTimeout(() => playSound('click'), i*120);
+  // メモライズバー進行
+  if(memBar && memBar.parentElement){
+    memBar.parentElement.innerHTML = '<div class="fill" id="loadMemBar"></div>';
+    const b = document.getElementById('loadMemBar');
+    b.style.transition = 'none';
+    b.style.width = '0%';
+    requestAnimationFrame(function(){
+      setTimeout(function(){
+        b.style.transition = 'width ' + LOAD_MEMORIZE_MS + 'ms linear';
+        b.style.width = '100%';
+      }, 50);
     });
-    hintEl.style.visibility = 'visible';
-    hintEl.textContent = '— 装填される順番を覚えよ —';
-    // メモライズ・バーのユニーキ起動 (再トリガーのため作り直し)
-    memBar.parentElement.innerHTML = '<div class="fill" id="loadMemBar" style="--memorize-dur:' + LOAD_MEMORIZE_MS + 'ms"></div>';
-    document.getElementById('loadMemBar').style.animation = `memorizeFill ${LOAD_MEMORIZE_MS}ms linear forwards`;
-    memBar.parentElement.parentElement && (memBar.parentElement.parentElement.style.display='');
-  }, LOAD_ANNOUNCE_MS);
+  }
 
-  // --- Phase 3: 1発ずつショットガンへ吸い込ませる ---
-  const insertStart = LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS;
-  setTimeout(() => {
-    hintEl.textContent = '— 装填中 —';
-    const children = Array.from(shellsEl.children);
-    const shotgunRect = document.getElementById('shotgun').getBoundingClientRect();
-    children.forEach((child, i) => {
-      setTimeout(() => {
-        const rect = child.getBoundingClientRect();
-        const dx = (shotgunRect.left + shotgunRect.width/2) - (rect.left + rect.width/2);
-        const dy = (shotgunRect.top + shotgunRect.height/2) - (rect.top + rect.height/2);
-        child.style.setProperty('--dx', dx + 'px');
-        child.style.setProperty('--dy', dy + 'px');
-        child.classList.remove('loading-in');
-        child.classList.add('loading-suck');
-        // ショットガンのポンプアクション
-        const sg = document.getElementById('shotgun');
-        sg.classList.add('pumping');
-        setTimeout(() => sg.classList.remove('pumping'), 700);
-        playSound('click');
-      }, i * LOAD_INSERT_PER_MS);
-    });
-  }, insertStart);
-
-  // --- Phase 4: 完了演出 ---
-  const totalMs = insertStart + shells.length * LOAD_INSERT_PER_MS;
-  setTimeout(() => {
-    announceEl.innerHTML = '<span class="ready-text">READY</span>';
-    shellsEl.innerHTML = '';
-    hintEl.textContent = '';
-    memBar.parentElement && (memBar.parentElement.innerHTML = '');
+  // 閉じる (本家準拠の短め演出)
+  const totalDur = LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS + LOAD_FINISH_PAD_MS;
+  setTimeout(function(){
+    hintEl.innerHTML = '<span class="ready-text">― READY ―</span>';
     playSound('chime');
-  }, totalMs);
-
-  // オーバーレイを閉じる (phaseが変わるか、タイムアウトで)
-  const closeDelay = totalMs + LOAD_FINISH_PAD_MS + 100;
-  setTimeout(() => {
+  }, LOAD_ANNOUNCE_MS + LOAD_MEMORIZE_MS);
+  setTimeout(function(){
     overlay.classList.remove('active');
-    document.getElementById('tableWrap').classList.remove('loading-phase');
-  }, closeDelay);
+    if(tw) tw.classList.remove('loading-phase');
+  }, totalDur);
 }
+
 
 function renderActions(room){
   const panel = document.getElementById('actPanel');
@@ -2176,6 +2300,45 @@ function promptAdren(aliveSeats){
 
 function renderLog(room){
   const st = room.state;
+  // v6: アイテム使用イベントを検知 → 他プレイヤーにはミニ通知、本人にはカットイン
+  if(st && st.log && st.log.length){
+    const newest = st.log[st.log.length-1];
+    if(newest && newest.t !== S.__lastLogT){
+      S.__lastLogT = newest.t;
+      const m = (newest.msg||'');
+      const pairs = [
+        ['🚬','cig'],['🍺','beer'],['🪚','saw'],['🔍','glass'],
+        ['📱','phone'],['💉','adren'],['🔄','invert'],['📡','jammer'],['🎛️','remote']
+      ];
+      const hit = pairs.find(function(p){ return m.indexOf(p[0])>=0; });
+      if(hit && newest.cls === 'item' && typeof showItemNotify === 'function'){
+        // 「🚬 <使用者名> は ...」から使用者名を抽出
+        const um = m.match(/^[^\s]+\s+([^\s]+)\s*は/);
+        const userName = um ? um[1] : '';
+        // ビールの場合は弾排出アニメ (本人視点には privateResult で結果通知が来る)
+        if(hit[1] === 'beer' && st.privateResult && st.privateResult[S.seat]
+           && st.privateResult[S.seat].item === 'beer'
+           && st.privateResult[S.seat].t === newest.t){
+          const kind = st.privateResult[S.seat].kind === 'live' ? 'L' : 'B';
+          if(typeof ejectCasing === 'function') ejectCasing(kind, 'beer');
+        }
+        // 他プレイヤーにのみ通知を表示 (自分の操作はカットインで見せる)
+        // ただし自分が使用したアイテムもミニ通知は出すと冗長 → 本人使用時は通知スキップ
+        const amIUser = S.lastRoom && S.lastRoom.players && S.lastRoom.players[S.seat] && S.lastRoom.players[S.seat].name === userName;
+        if(!amIUser){
+          showItemNotify(userName, hit[1]);
+        }
+      }
+    }
+  }
+  // v6: privateResult (使用者本人のみ見える結果) を検知してカットイン
+  if(st && st.privateResult && st.privateResult[S.seat]){
+    const pr = st.privateResult[S.seat];
+    if(pr && pr.t !== S.__lastPrivResT){
+      S.__lastPrivResT = pr.t;
+      if(typeof showItemResult === 'function') showItemResult(pr);
+    }
+  }
   const pane = document.getElementById('pane-log');
   if(!st || !st.log){ pane.innerHTML='<div class="entry system">— ログなし —</div>'; return; }
   const pub = (st.log||[]).map(e => ({ ...e, priv:false }));
@@ -2276,6 +2439,66 @@ window.confirmReset = confirmReset;
 /* ============================================================= */
 /* UIヘルパー                                                        */
 /* ============================================================= */
+
+
+/* ==========================================================
+   v6.0 薬莢排出アニメ
+   ========================================================== */
+function ejectCasing(kind, mode){
+  // kind: 'L' or 'B'
+  // mode: 'shoot' (右へ排出) or 'beer' (左へ排出)
+  const sg = document.getElementById('shotgun');
+  if(!sg) return;
+  const r = sg.getBoundingClientRect();
+  const c = document.createElement('div');
+  c.className = 'ejected-casing ' + (kind==='L'?'live':'blank') + ' ' + (mode==='beer'?'beer-eject':'shoot-eject');
+  c.style.left = (r.left + r.width*0.3) + 'px';
+  c.style.top  = (r.top  + r.height*0.3) + 'px';
+  document.body.appendChild(c);
+  setTimeout(function(){ if(c.parentNode) c.parentNode.removeChild(c); }, 1400);
+}
+
+/* ==========================================================
+   v6.0 アイテム結果カットイン(使用者本人のみ)
+   ========================================================== */
+function showItemResult(res){
+  const ov = document.getElementById('itemResultOverlay');
+  if(!ov || !res) return;
+  const icon = document.getElementById('itemResultIcon');
+  const title = document.getElementById('itemResultTitle');
+  const main = document.getElementById('itemResultMain');
+  const sub = document.getElementById('itemResultSub');
+  const meta = (typeof ITEM_TYPES !== 'undefined' ? ITEM_TYPES[res.item] : null) || { icon:'🎴', name:'ITEM' };
+  icon.textContent = meta.icon;
+  title.textContent = res.title || meta.name;
+  main.textContent  = res.main || '';
+  main.className = 'main ' + (res.kind || 'neutral');
+  sub.textContent   = res.sub || '';
+  ov.classList.remove('active');
+  void ov.offsetWidth;
+  ov.classList.add('active');
+  playSound('item');
+  clearTimeout(window.__resT);
+  window.__resT = setTimeout(function(){ ov.classList.remove('active'); }, 2200);
+}
+
+/* ==========================================================
+   v6.0 他プレイヤー向けミニ通知
+   ========================================================== */
+function showItemNotify(userName, itemKey){
+  const el = document.getElementById('itemNotify');
+  if(!el) return;
+  const meta = (typeof ITEM_TYPES !== 'undefined' ? ITEM_TYPES[itemKey] : null) || { icon:'🎴', name:itemKey };
+  el.innerHTML = '<span class="ni-icon">'+meta.icon+'</span>'
+    + '<span class="ni-user">'+esc(userName||'')+'</span>'
+    + ' が <span class="ni-item">'+meta.name+'</span> を使用';
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+  clearTimeout(window.__notifyT);
+  window.__notifyT = setTimeout(function(){ el.classList.remove('show'); }, 2200);
+}
+
 function showCutIn(icon, msg, cls){
   const o = document.getElementById('overlay');
   o.className = cls || '';
